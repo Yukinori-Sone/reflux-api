@@ -343,3 +343,7 @@ healthchecksdb
 Reflux/offset finding.txt
 /Reflux/reflux build/netcoreapp3.1
 /publish.bat
+
+# Claude Code local files
+.claude/scratch/
+.claude/settings.local.json
