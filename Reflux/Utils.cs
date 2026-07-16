@@ -170,6 +170,7 @@ namespace Reflux
         /// </summary>
         public static void LoadEncodingFixes()
         {
+            knownEncodingIssues.Clear();
             try
             {
                 foreach (var line in File.ReadAllLines("encodingfixes.txt"))
@@ -189,6 +190,7 @@ namespace Reflux
         /// </summary>
         public static void LoadCustomTypes()
         {
+            customTypes.Clear();
             try
             {
                 foreach (var line in File.ReadAllLines("customtypes.txt"))
@@ -205,6 +207,8 @@ namespace Reflux
         }
         public static void FindPlayStateMarker()
         {
+            playMarkerAvailable = false;
+            playMarkerAddress = 0;
             long offset = Offsets.JudgeData + 144;
             var buffer = new byte[96];
             int nRead = 0;
@@ -220,7 +224,7 @@ namespace Reflux
                 }
             }
             var judgeEnd = indices.Take(3);
-            if (judgeEnd.ElementAt(1) - judgeEnd.ElementAt(0) == 8 && judgeEnd.ElementAt(2) - judgeEnd.ElementAt(1) == 8)
+            if (judgeEnd.Count() >= 3 && judgeEnd.ElementAt(1) - judgeEnd.ElementAt(0) == 8 && judgeEnd.ElementAt(2) - judgeEnd.ElementAt(1) == 8)
             {
                 // Judge offset + 144 (get close to section with search pattern) + offset for second magic value + 6 32-bit integers later
                 long magicNumberAddress = offset + judgeEnd.ElementAt(1);

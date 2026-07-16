@@ -42,6 +42,7 @@ namespace Reflux
         /// </summary>
         public static void LoadMap()
         {
+            nodes.Clear(); /* Drop nodes from a previous attach, otherwise updated scores are never re-read */
             long datamap = Offsets.DataMap;
             long nullobj = Utils.ReadInt64(datamap, -16);
             long startaddress = Utils.ReadInt64(datamap, 0);

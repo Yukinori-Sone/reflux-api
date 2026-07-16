@@ -171,6 +171,7 @@ namespace Reflux
         /// </summary>
         public static void LoadTracker()
         {
+            trackerDb.Clear(); /* Reload from tracker.db on every attach to avoid duplicate key errors */
             /* Initialize if tracker file don't exist */
             if (File.Exists("tracker.db"))
             {
