@@ -32,6 +32,8 @@ namespace Reflux.Api
     class StatusDto
     {
         public int ApiVersion { get; set; } = 1;
+        /// <summary>Changes every time Reflux starts, revisions are only comparable within one instance</summary>
+        public string InstanceId { get; set; } = Guid.NewGuid().ToString("N");
         public string RefluxVersion { get; set; }
         public AttachState AttachState { get; set; }
         public DateTime AttachStateSince { get; set; }
