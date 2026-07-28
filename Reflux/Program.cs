@@ -1,5 +1,6 @@
 ﻿using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
+using Reflux.Api;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -20,11 +21,18 @@ namespace Reflux
         /* Import external methods */
         [DllImport("kernel32.dll")]
         public static extern IntPtr OpenProcess(int dwDesiredAccess, bool bInheritHandle, int dwProcessId);
+        [DllImport("kernel32.dll")]
+        public static extern bool CloseHandle(IntPtr hObject);
 
         static void Main()
         {
             Utils.CheckVersion();
             Config.Parse("config.ini");
+            BestDetail.Load();
+            if (Config.ApiServer_Enabled)
+            {
+                ApiServer.Start(); /* Runs independently of the attach state */
+            }
 
             #region Parse unlockdb file
             Dictionary<string, Tuple<int, int>> unlock_db = new Dictionary<string, Tuple<int, int>>();
@@ -71,6 +79,8 @@ namespace Reflux
             do
             {
                 Process process = null;
+                ApiState.SetAttachState(AttachState.WaitingForProcess);
+                ApiState.ConsumeRetry(); /* Already searching, drop pending retry request */
                 Console.WriteLine("Trying to hook to INFINITAS...");
                 do
                 {
@@ -88,6 +98,8 @@ namespace Reflux
 
 
                 IntPtr processHandle = OpenProcess(0x0410, false, process.Id); /* Open process for memory read */
+                ApiState.SetProcess(process.Id);
+                ApiState.SetAttachState(AttachState.CheckingVersion);
                 Utils.handle = processHandle;
 
                 Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
@@ -136,6 +148,8 @@ namespace Reflux
                 // Start manual search if no correct version could be found
                 if (!correctVersion)
                 {
+                    ApiState.SetVersions(foundVersion, Offsets.Version);
+                    ApiState.SetAttachState(AttachState.OffsetSearch, "Offsets don't match the game version, interactive offset search is waiting on the Reflux console");
                     var result = OffsetSearcher.SearchNewOffsets();
                     Console.WriteLine("New offsets found:");
                     Console.WriteLine($"SongList: {result.SongList:X}");
@@ -157,6 +171,9 @@ namespace Reflux
 
                 #endregion
 
+                ApiState.SetVersions(foundVersion, Offsets.Version);
+                ApiState.SetAttachState(AttachState.Loading);
+
                 #region Wait until data is properly loaded
 
                 bool songlistFetched = false;
@@ -167,7 +184,7 @@ namespace Reflux
                     while (!Utils.DataLoaded())
                     {
                         Thread.Sleep(5000);
-                        if (process.HasExited)
+                        if (process.HasExited || ApiState.ConsumeRetry())
                         {
                             processExit = true;
                             break;
@@ -195,6 +212,7 @@ namespace Reflux
                 }
                 if (processExit)
                 {
+                    CloseHandle(processHandle);
                     continue;
                 }
 
@@ -289,6 +307,9 @@ namespace Reflux
                 GameState state = GameState.songSelect;
 
                 Console.WriteLine("Initialized and ready");
+                ApiState.PublishSongs();
+                ApiState.PublishScores();
+                ApiState.SetReady(Utils.playMarkerAvailable);
                 if (!Utils.playMarkerAvailable)
                 {
                     Console.WriteLine("Expected pattern to detect play state not found, so play result fetching is not available.");
@@ -320,6 +341,11 @@ namespace Reflux
                 /* Main loop */
                 while (!process.HasExited)
                 {
+                    if (ApiState.ConsumeRetry())
+                    {
+                        Console.WriteLine("Re-attach requested, re-hooking...");
+                        break;
+                    }
                     try
                     {
                         var newstate = Utils.FetchGameState(state);
@@ -327,6 +353,7 @@ namespace Reflux
                         if (newstate != state)
                         {
                             state = newstate;
+                            ApiState.SetGameState(newstate);
 
                             Console.Clear();
                             Console.WriteLine($"STATUS:{(newstate != GameState.playing ? " NOT" : "")} PLAYING");
@@ -404,6 +431,7 @@ namespace Reflux
                                         File.WriteAllText("latest.txt", latestData.Chart.title_english + Environment.NewLine + latestData.Grade.ToString() + Environment.NewLine + latestData.Lamp.ToString());
                                     }
                                 }
+                                ApiState.OnPlayRecorded(latestData);
                                 try
                                 {
                                     Print_PlayData(latestData);
@@ -485,6 +513,10 @@ namespace Reflux
                             {
                                 Network.ReportUnlocks(newUnlocks);
                             }
+                            if (newUnlocks.Count > 0)
+                            {
+                                ApiState.PublishScores();
+                            }
                         }
                     }
                     catch (Exception e)
@@ -511,6 +543,7 @@ namespace Reflux
                     Utils.Debug($"Writing NO SIGNAL to marquee.txt");
                     File.WriteAllText("marquee.txt", "NO SIGNAL");
                 }
+                CloseHandle(processHandle);
             } while (true);
             #endregion
         }

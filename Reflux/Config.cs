@@ -22,6 +22,10 @@ namespace Reflux
         public static bool Stream_FullSongInfo { get; private set; }
         public static string MarqueeIdleText { get; private set; }
         public static bool UseLocaltime { get; private set; }
+        public static bool ApiServer_Enabled { get; private set; }
+        public static string ApiServer_Host { get; private set; }
+        public static int ApiServer_Port { get; private set; }
+        public static string ApiServer_Key { get; private set; }
         public static HeaderValues HeaderConfig { get { return header; } }
         static HeaderValues header;
         static IDictionary<string, string> config;
@@ -60,6 +64,12 @@ namespace Reflux
             MarqueeIdleText = ReadConfigString("livestream:marqueeidletext");
 
             Output_songlist = ReadConfigBoolean("debug:outputdb");
+
+            /* Optional section, missing keys fall back to defaults silently (API disabled) */
+            ApiServer_Enabled = ReadOptional("api:enabled", "false").Equals("true", StringComparison.OrdinalIgnoreCase);
+            ApiServer_Host = ReadOptional("api:host", "localhost");
+            ApiServer_Port = int.TryParse(ReadOptional("api:port", "8790"), out int port) ? port : 8790;
+            ApiServer_Key = ReadOptional("api:apikey", "");
             Utils.Debug("Done\n");
 
         }
@@ -72,6 +82,10 @@ namespace Reflux
             }
             Console.WriteLine($"Couldn't read key {key}, setting empty string");
             return "";
+        }
+        static string ReadOptional(string key, string defaultValue)
+        {
+            return config.TryGetValue(key, out var value) && !string.IsNullOrWhiteSpace(value) ? value.Trim() : defaultValue;
         }
         static bool ReadConfigBoolean(string key)
         {
