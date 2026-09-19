@@ -222,13 +222,14 @@ namespace Reflux
 
                 #region Create session and json file if configured to track those
 
-                if (Config.Save_local)
+                /* Only create once per Reflux run, re-attaching after an INFINITAS restart would otherwise wipe earlier plays */
+                if (Config.Save_local && !File.Exists(sessionFile.FullName))
                 {
                     File.Create(sessionFile.FullName).Close();
                     WriteLine(sessionFile, Config.GetTsvHeader());
                 }
 
-                if (Config.Save_json)
+                if (Config.Save_json && !File.Exists(jsonfile.FullName))
                 {
                     JObject head = new JObject
                     {
