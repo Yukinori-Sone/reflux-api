@@ -14,7 +14,7 @@
 | 【追加】ファイル | `bestdetail.json` | 自己ベストを出したプレーの判定内訳（PG/GR、BAD/POOR） |
 | 【変更】動作 | `tracker.db` / `log.txt` | INF 再起動（再アタッチ）時の読み込みを修正 |
 | 【追加】別アプリ | Reflux.Client の `client.json` / `reflux-client.db` | 別PC側のクライアント（コアとは別の exe） |
-| 変更なし（注意） | セッション TSV/JSON | INF 再起動で記録が消える本家の不具合は未修正（Original の ※1） |
+| 【変更】動作 | セッション TSV/JSON | INF 再起動で記録が消える本家の不具合（Original の ※1）を修正 |
 
 ## 共通の注意（差分）
 
@@ -59,11 +59,12 @@ New-NetFirewallRule -DisplayName "Reflux API" -Direction Inbound -Protocol TCP -
 |---|---|---|
 | `tracker.db` | 2回目以降のアタッチ時、`tracker.db` の読み込みが重複エラーで途中で止まる。ゲーム内の自己ベストの読み直しも前回分で打ち切られるため、Reflux を通さずに更新された自己ベスト（Reflux 停止中のプレー等）が反映されないまま書き直されることがある | アタッチのたびに `tracker.db` とゲーム内の自己ベストを読み直す |
 | `log.txt` | 上記の重複エラーが再アタッチのたびに記録される | このエラーは出なくなる |
+| `sessions/Session_*.tsv` / `.json` | アタッチのたびに作り直されるため、Reflux を落とさずに INF を再起動すると、それまでのプレー記録が消える（Original の ※1） | ファイルが無いときだけ作成する。Reflux 1回の起動につき1ファイルで、再アタッチ後のプレーも同じファイルに追記される |
+
+本家の不具合として直したものは [本家不具合修正一覧.md](本家不具合修正一覧.md) にも記録している。
 
 ### 変更なし（念のため）
 
-- セッション TSV/JSON（Original の ※1）: 再アタッチで記録が消える本家の不具合は**未修正**。
-  Reflux を落とさずに INF を再起動する使い方では影響が出るので、修正候補
 - `tracker.tsv` の2秒ごとの書き直しなど、API 運用時は不要になるファイル出力の削減は**未着手**（実機確認後の候補）
 
 ## 【追加】Reflux.Client（別PC側）
