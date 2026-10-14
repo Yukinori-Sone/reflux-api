@@ -14,6 +14,8 @@ namespace Reflux.Api
         WaitingForProcess,
         /// <summary>Hooked, comparing game version with offsets</summary>
         CheckingVersion,
+        /// <summary>Offsets didn't match, waiting for PUT /api/offsets or Enter on the console (only with the API enabled)</summary>
+        OffsetMismatch,
         /// <summary>Offsets didn't match, interactive offset search is running on the console</summary>
         OffsetSearch,
         /// <summary>Waiting for the song list and reading databases</summary>

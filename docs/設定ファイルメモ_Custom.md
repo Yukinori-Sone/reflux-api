@@ -15,6 +15,7 @@
 | 【変更】動作 | `tracker.db` / `log.txt` | INF 再起動（再アタッチ）時の読み込みを修正 |
 | 【追加】別アプリ | Reflux.Client の `client.json` / `reflux-client.db` | 別PC側のクライアント（コアとは別の exe） |
 | 【変更】動作 | セッション TSV/JSON | INF 再起動で記録が消える本家の不具合（Original の ※1）を修正 |
+| 【変更】動作 | `offsets.txt` / `archive/` | API からオフセットを書き換えられる。`[Api]` 有効時はバージョン不一致でも対話式探索にすぐ入らず待機する |
 
 ## 共通の注意（差分）
 
@@ -34,6 +35,13 @@
 
 - API はリクエストでゲームのメモリを読まない（メインループが2秒ごとに読んだ結果を返すだけ）。
   使えるエンドポイントは `GET /api/status|songs|charts|scores|latest|session`、`POST /api/attach/retry`
+- 例外として、ゲームのアップデート対応用に次のエンドポイントがある（リクエストのたびにメモリを読む／ファイルを書く）
+  - `GET /api/offsets`: `offsets.txt` の内容と使用中の値、ゲームのバージョン、bm2dx のベースアドレス
+  - `PUT /api/offsets`: `offsets.txt` を書き換えて再アタッチ。本文は `{"version":"P2D:J:B:A:…","offsets":{"songList":"0x…"},"reattach":true}`（どれも省略可。省略したオフセットは今の値のまま、`version` の省略時は検出したゲームのバージョン）
+  - `GET /api/memory/info`: bm2dx のベースアドレス・サイズ
+  - `GET /api/memory?address=…&length=…&format=hex|bin&encoding=sjis`: メモリダンプ（最大 16MB、初期値は 16進表示で 0x100 バイト）。`address` は `songList+0x630`、`base+0x1000` のように、オフセット名・`base`・16進数を `+` `-` でつないで書ける
+  - `GET /api/memory/search?start=…&length=…&hex=…|text=…&encoding=…|int32=…|int64=…&max=…`: バイト列・文字列（既定 Shift-JIS）・数値の検索（最大 1GB、ヒットは最大 1000 件）
+- `apikey` を設定していなければ、LAN 内の誰でもオフセットを書き換え・メモリを読めるので、`host = +` で公開するときは `apikey` の設定を推奨
 
 `host = +` にする場合の事前準備（ゲームPCで1回だけ、管理者権限で）:
 
@@ -60,6 +68,13 @@ New-NetFirewallRule -DisplayName "Reflux API" -Direction Inbound -Protocol TCP -
 | `tracker.db` | 2回目以降のアタッチ時、`tracker.db` の読み込みが重複エラーで途中で止まる。ゲーム内の自己ベストの読み直しも前回分で打ち切られるため、Reflux を通さずに更新された自己ベスト（Reflux 停止中のプレー等）が反映されないまま書き直されることがある | アタッチのたびに `tracker.db` とゲーム内の自己ベストを読み直す |
 | `log.txt` | 上記の重複エラーが再アタッチのたびに記録される | このエラーは出なくなる |
 | `sessions/Session_*.tsv` / `.json` | アタッチのたびに作り直されるため、Reflux を落とさずに INF を再起動すると、それまでのプレー記録が消える（Original の ※1） | ファイルが無いときだけ作成する。Reflux 1回の起動につき1ファイルで、再アタッチ後のプレーも同じファイルに追記される |
+
+### 【変更】オフセット関連（`[Api]` 有効時のみ）
+
+| ファイル | 本家の動き | 独自版の動き |
+|---|---|---|
+| `offsets.txt` | バージョン不一致のとき、サーバーから取得できなければすぐ対話式のオフセット探索に入る（コンソールでの入力待ち） | サーバーから取得できなければ、`PUT /api/offsets` を待つ（コンソールで Enter を押せば本家どおり対話式探索）。`PUT /api/offsets` が来るたびに書き換えて再アタッチする |
+| `archive/` | 置き換え時に旧 `offsets.txt` を `archive/<バージョン>.txt` へ移動（同じ名前なら上書き） | `PUT /api/offsets` のときは `archive/<バージョン>_<日時>.txt` にコピーしてから書き換える（上書きしない） |
 
 本家の不具合として直したものは [本家不具合修正一覧.md](本家不具合修正一覧.md) にも記録している。
 

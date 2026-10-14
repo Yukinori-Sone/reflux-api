@@ -149,6 +149,11 @@ namespace Reflux
                 if (!correctVersion)
                 {
                     ApiState.SetVersions(foundVersion, Offsets.Version);
+                    if (Config.ApiServer_Enabled && !DebugApi.WaitForOffsetsOrConsole(process, foundVersion))
+                    {
+                        CloseHandle(processHandle); /* Offsets changed through the API or game closed, start over */
+                        continue;
+                    }
                     ApiState.SetAttachState(AttachState.OffsetSearch, "Offsets don't match the game version, interactive offset search is waiting on the Reflux console");
                     var result = OffsetSearcher.SearchNewOffsets();
                     Console.WriteLine("New offsets found:");

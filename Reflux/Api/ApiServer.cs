@@ -1,4 +1,6 @@
 using System;
+using System.Collections.Generic;
+using System.IO;
 using System.Net;
 using System.Text;
 using System.Threading;
@@ -8,6 +10,7 @@ namespace Reflux.Api
     /// <summary>
     /// Minimal HTTP/JSON API for remote clients. Runs on its own background thread and only serves
     /// data already collected by the main loop (see <see cref="ApiState"/>), so requests never touch game memory.
+    /// Exception: the maintenance endpoints in <see cref="DebugApi"/> (offsets, raw memory read).
     /// </summary>
     static class ApiServer
     {
@@ -82,7 +85,9 @@ namespace Reflux.Api
                 {
                     case "":
                     case "/api":
-                        Write(ctx, 200, "{\"endpoints\":[\"GET /api/status\",\"GET /api/songs\",\"GET /api/charts\",\"GET /api/scores\",\"GET /api/latest\",\"GET /api/session\",\"POST /api/attach/retry\"]}");
+                        Write(ctx, 200, "{\"endpoints\":[\"GET /api/status\",\"GET /api/songs\",\"GET /api/charts\",\"GET /api/scores\",\"GET /api/latest\",\"GET /api/session\",\"POST /api/attach/retry\"," +
+                            "\"GET /api/offsets\",\"PUT /api/offsets\",\"GET /api/memory/info\",\"GET /api/memory?address=&length=&format=hex|bin&encoding=sjis\"," +
+                            "\"GET /api/memory/search?start=&length=&hex=|text=&encoding=|int32=|int64=&max=\"]}");
                         return;
                     case "/api/status": Write(ctx, 200, ApiState.StatusJson()); return;
                     case "/api/songs": Write(ctx, 200, ApiState.SongsJson()); return;
@@ -90,7 +95,24 @@ namespace Reflux.Api
                     case "/api/scores": Write(ctx, 200, ApiState.ScoresJson()); return;
                     case "/api/latest": Write(ctx, 200, ApiState.LatestJson()); return;
                     case "/api/session": Write(ctx, 200, ApiState.SessionJson()); return;
+                    case "/api/offsets": Write(ctx, 200, DebugApi.GetOffsetsJson()); return;
+                    case "/api/memory/info":
+                        {
+                            var (code, json) = DebugApi.GetInfoJson();
+                            Write(ctx, code, json);
+                            return;
+                        }
+                    case "/api/memory": DebugApi.Dump(ctx); return;
+                    case "/api/memory/search": DebugApi.Search(ctx); return;
                 }
+            }
+            else if ((method == "PUT" || method == "POST") && path == "/api/offsets")
+            {
+                string body;
+                using (var reader = new StreamReader(req.InputStream, Encoding.UTF8)) { body = reader.ReadToEnd(); }
+                var (code, json) = DebugApi.PutOffsets(body);
+                Write(ctx, code, json);
+                return;
             }
             else if (method == "POST")
             {
@@ -111,12 +133,20 @@ namespace Reflux.Api
             return Newtonsoft.Json.JsonConvert.SerializeObject(new { error = code, message }, ApiState.JsonSettings);
         }
 
-        static void Write(HttpListenerContext ctx, int statusCode, string json)
+        public static void Write(HttpListenerContext ctx, int statusCode, string json)
         {
-            var bytes = Encoding.UTF8.GetBytes(json);
+            WriteBytes(ctx, statusCode, "application/json; charset=utf-8", Encoding.UTF8.GetBytes(json), null);
+        }
+
+        public static void WriteBytes(HttpListenerContext ctx, int statusCode, string contentType, byte[] bytes, Dictionary<string, string> headers)
+        {
             var res = ctx.Response;
             res.StatusCode = statusCode;
-            res.ContentType = "application/json; charset=utf-8";
+            res.ContentType = contentType;
+            if (headers != null)
+            {
+                foreach (var h in headers) { res.AddHeader(h.Key, h.Value); }
+            }
             res.ContentLength64 = bytes.Length;
             res.OutputStream.Write(bytes, 0, bytes.Length);
             res.OutputStream.Close();
