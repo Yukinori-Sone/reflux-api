@@ -109,7 +109,7 @@ namespace Reflux
         public static IntPtr handle;
         public static long playMarkerAddress = 0;
         public static bool playMarkerAvailable = false;
-        readonly static int songBufferSize = 0x630;
+        readonly static int songBufferSize = 0x730; /* 2026101400: was 0x630 */
         /// <summary>
         /// DB for keeping track of unlocks and potential changes
         /// </summary>
@@ -449,21 +449,31 @@ namespace Reflux
         /// </summary>
         /// <param name="position">Start position of song metadata</param>
         /// <returns>SongInfo object containing all metadata</returns>
+        /// <summary>
+        /// Read a zero terminated UTF-16 string from a fixed size field
+        /// </summary>
+        private static string Utf16String(byte[] buffer, int offset, int length)
+        {
+            var s = Encoding.Unicode.GetString(buffer, offset, length);
+            int end = s.IndexOf('\0');
+            return (end >= 0 ? s.Substring(0, end) : s).TrimEnd();
+        }
         private static SongInfo FetchSongInfo(long position)
         {
             int bytesRead = 0;
             short slab = 64;
             short string_slab = 128; // Strings takes double the space now, except for the LED ticker text
+            short title_slab = 256; /* 2026101400: title is UTF-16 in 256 bytes */
             short word = 4; /* Int32 */
             int offset = 0;
-            int idPosition = 1200;
+            int idPosition = 1456; /* 2026101400: was 1200 before the title grew and a 128 byte field was added after artist */
 
             byte[] buffer = new byte[songBufferSize];
 
             ReadProcessMemory((int)handle, position, buffer, buffer.Length, ref bytesRead);
 
-            var title1 = Encoding.GetEncoding("Shift-JIS").GetString(buffer.Take(string_slab).Where(x => x != 0).ToArray()).TrimEnd();
-            offset += string_slab;
+            var title1 = Utf16String(buffer, offset, title_slab);
+            offset += title_slab;
 
             if (Utils.BytesToInt32(buffer.Take(slab).ToArray(), 0) == 0)
             {
@@ -472,10 +482,11 @@ namespace Reflux
 
             var title2 = Encoding.GetEncoding("Shift-JIS").GetString(buffer.Skip(offset).Take(slab).Where(x => x != 0).ToArray()).TrimEnd();
             offset += slab;
-            var genre = Encoding.GetEncoding("Shift-JIS").GetString(buffer.Skip(offset).Take(string_slab).Where(x => x != 0).ToArray()).TrimEnd();
+            var genre = Utf16String(buffer, offset, string_slab);
             offset += string_slab;
-            var artist = Encoding.GetEncoding("Shift-JIS").GetString(buffer.Skip(offset).Take(string_slab).Where(x => x != 0).ToArray()).TrimEnd();
+            var artist = Utf16String(buffer, offset, string_slab);
             offset += string_slab;
+            offset += string_slab; /* 2026101400: unknown 128 byte field, empty for every song seen so far */
 
             var folderBytes = buffer.Skip(offset).Skip(24).Take(1).ToList();
             var folder = BitConverter.ToInt32(new byte[] { folderBytes[0], 0, 0, 0 });
