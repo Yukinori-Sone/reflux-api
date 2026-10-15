@@ -2,7 +2,7 @@
 {
     class Settings
     {
-        public static readonly int P2_offset = 4 * 18;
+        public static int P2_offset => Api.Layout.Settings.P2Offset; /* Was 4 * 18, now from layout.json or built-in defaults */
         public string style;
         public string style2; /* Style for 2p side in DP */
         public string gauge;
@@ -18,7 +18,8 @@
         /// <param name="playstyle"></param>
         public void Fetch(PlayType playstyle)
         {
-            int word = 4;
+            var l = Api.Layout.Settings; /* Field positions from layout.json or built-in defaults */
+            int p2 = l.P2Offset;
 
             int styleVal = 0;
             int gaugeVal = 0;
@@ -28,26 +29,26 @@
             int HranVal = 0;
             if (playstyle == PlayType.P1 || playstyle == PlayType.DP)
             {
-                styleVal = Utils.ReadInt32(Offsets.PlaySettings, 0);
-                gaugeVal = Utils.ReadInt32(Offsets.PlaySettings, word);
-                assistVal = Utils.ReadInt32(Offsets.PlaySettings, word * 2);
-                rangeVal = Utils.ReadInt32(Offsets.PlaySettings, word * 4);
-                HranVal = Utils.ReadInt32(Offsets.PlaySettings, word * 9);
+                styleVal = Utils.ReadInt32(Offsets.PlaySettings, l.Style);
+                gaugeVal = Utils.ReadInt32(Offsets.PlaySettings, l.Gauge);
+                assistVal = Utils.ReadInt32(Offsets.PlaySettings, l.Assist);
+                rangeVal = Utils.ReadInt32(Offsets.PlaySettings, l.Range);
+                HranVal = Utils.ReadInt32(Offsets.PlaySettings, l.HRan);
                 if (playstyle == PlayType.DP) /* Style for DP P2 side has its own value and isn't shared with P2 settings */
                 {
-                    style2Val = Utils.ReadInt32(Offsets.PlaySettings, word * 5);
+                    style2Val = Utils.ReadInt32(Offsets.PlaySettings, l.Style2);
                 }
             }
             else if (playstyle == PlayType.P2) /* P2 settings are separate from P1 */
             {
-                styleVal = Utils.ReadInt32(Offsets.PlaySettings, P2_offset);
-                gaugeVal = Utils.ReadInt32(Offsets.PlaySettings, P2_offset + word);
-                assistVal = Utils.ReadInt32(Offsets.PlaySettings, P2_offset + (word * 2));
-                rangeVal = Utils.ReadInt32(Offsets.PlaySettings, P2_offset + (word * 4));
-                HranVal = Utils.ReadInt32(Offsets.PlaySettings, P2_offset + (word * 9));
+                styleVal = Utils.ReadInt32(Offsets.PlaySettings, p2 + l.Style);
+                gaugeVal = Utils.ReadInt32(Offsets.PlaySettings, p2 + l.Gauge);
+                assistVal = Utils.ReadInt32(Offsets.PlaySettings, p2 + l.Assist);
+                rangeVal = Utils.ReadInt32(Offsets.PlaySettings, p2 + l.Range);
+                HranVal = Utils.ReadInt32(Offsets.PlaySettings, p2 + l.HRan);
             }
-            int flipVal = Utils.ReadInt32(Offsets.PlaySettings, word * 3);
-            int battleVal = Utils.ReadInt32(Offsets.PlaySettings, word * 8);
+            int flipVal = Utils.ReadInt32(Offsets.PlaySettings, l.Flip);
+            int battleVal = Utils.ReadInt32(Offsets.PlaySettings, l.Battle);
 
             switch (styleVal)
             {

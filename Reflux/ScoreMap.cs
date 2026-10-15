@@ -43,10 +43,11 @@ namespace Reflux
         public static void LoadMap()
         {
             nodes.Clear(); /* Drop nodes from a previous attach, otherwise updated scores are never re-read */
+            var l = Api.Layout.ScoreMap; /* Field positions from layout.json or built-in defaults */
             long datamap = Offsets.DataMap;
-            long nullobj = Utils.ReadInt64(datamap, -16);
-            long startaddress = Utils.ReadInt64(datamap, 0);
-            long endaddress = Utils.ReadInt64(datamap, 8);
+            long nullobj = Utils.ReadInt64(datamap, l.NullNode);
+            long startaddress = Utils.ReadInt64(datamap, l.BucketsStart);
+            long endaddress = Utils.ReadInt64(datamap, l.BucketsEnd);
             byte[] buffer = new byte[endaddress - startaddress];
 
             int nRead = 0;
@@ -61,24 +62,24 @@ namespace Reflux
                 }
             }
 
-            buffer = new byte[64];
+            buffer = new byte[l.NodeSize];
             foreach (var entrypoint in llist_startpoints)
             {
                 if (entrypoint == nullobj) { continue; }
                 ReadProcessMemory((int)Utils.handle, entrypoint, buffer, buffer.Length, ref nRead);
                 ListNode entry = new ListNode()
                 {
-                    next = Utils.BytesToInt64(buffer, 0, 8),
-                    prev = Utils.BytesToInt64(buffer, 8, 8),
-                    diff = Utils.BytesToInt32(buffer, 16, 4),
-                    song = Utils.BytesToInt32(buffer, 20, 4),
-                    playtype = Utils.BytesToInt32(buffer, 24, 4),
+                    next = Utils.BytesToInt64(buffer, l.Next, 8),
+                    prev = Utils.BytesToInt64(buffer, l.Prev, 8),
+                    diff = Utils.BytesToInt32(buffer, l.Difficulty, 4),
+                    song = Utils.BytesToInt32(buffer, l.Song, 4),
+                    playtype = Utils.BytesToInt32(buffer, l.PlayType, 4),
                     uk2 = Utils.BytesToInt32(buffer, 28, 4),
-                    score = Utils.BytesToInt32(buffer, 32, 4),
-                    misscount = (uint)Utils.BytesToInt32(buffer, 36, 4),
+                    score = Utils.BytesToInt32(buffer, l.Score, 4),
+                    misscount = (uint)Utils.BytesToInt32(buffer, l.MissCount, 4),
                     uk3 = Utils.BytesToInt32(buffer, 40, 4),
                     uk4 = Utils.BytesToInt32(buffer, 44, 4),
-                    lamp = Utils.BytesToInt32(buffer, 48, 4)
+                    lamp = Utils.BytesToInt32(buffer, l.Lamp, 4)
                 };
                 FollowLinkedList(entry);
 
@@ -112,7 +113,8 @@ namespace Reflux
         }
         static void FollowLinkedList(ListNode entrypoint)
         {
-            var buffer = new byte[64];
+            var l = Api.Layout.ScoreMap; /* Field positions from layout.json or built-in defaults */
+            var buffer = new byte[l.NodeSize];
             int nRead = 0;
 
             var traveller = entrypoint;
@@ -133,17 +135,17 @@ namespace Reflux
                 ReadProcessMemory((int)Utils.handle, addr, buffer, buffer.Length, ref nRead);
                 traveller = new ListNode()
                 {
-                    next = Utils.BytesToInt64(buffer, 0, 8),
-                    prev = Utils.BytesToInt64(buffer, 8, 8),
-                    diff = Utils.BytesToInt32(buffer, 16, 4),
-                    song = Utils.BytesToInt32(buffer, 20, 4),
-                    playtype = Utils.BytesToInt32(buffer, 24, 4),
+                    next = Utils.BytesToInt64(buffer, l.Next, 8),
+                    prev = Utils.BytesToInt64(buffer, l.Prev, 8),
+                    diff = Utils.BytesToInt32(buffer, l.Difficulty, 4),
+                    song = Utils.BytesToInt32(buffer, l.Song, 4),
+                    playtype = Utils.BytesToInt32(buffer, l.PlayType, 4),
                     uk2 = Utils.BytesToInt32(buffer, 28, 4),
-                    score = Utils.BytesToInt32(buffer, 32, 4),
-                    misscount = (uint)Utils.BytesToInt32(buffer, 36, 4),
+                    score = Utils.BytesToInt32(buffer, l.Score, 4),
+                    misscount = (uint)Utils.BytesToInt32(buffer, l.MissCount, 4),
                     uk3 = Utils.BytesToInt32(buffer, 40, 4),
                     uk4 = Utils.BytesToInt32(buffer, 44, 4),
-                    lamp = Utils.BytesToInt32(buffer, 48, 4)
+                    lamp = Utils.BytesToInt32(buffer, l.Lamp, 4)
                 };
             }
         }

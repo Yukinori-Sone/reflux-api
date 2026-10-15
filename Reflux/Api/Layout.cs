@@ -47,9 +47,126 @@ namespace Reflux.Api
         public int Id = 0x5B0;
     }
 
+    /// <summary>One entry of the unlock data array (offsets.txt unlockData), one per song in song list order</summary>
+    public class UnlockLayout
+    {
+        public int EntrySize = 0x20;
+        /// <summary>Song ID, int32. An entry with ID 0 ends the array</summary>
+        public int Id = 0x0;
+        /// <summary>Unlock type (1 Base, 2 Bits, 3 Sub), int32</summary>
+        public int Type = 0x4;
+        /// <summary>Unlocked charts, int32 bit field by difficulty (bit 0 = SPB ... bit 9 = DPL)</summary>
+        public int Unlocks = 0x8;
+    }
+
+    /// <summary>
+    /// Personal best hash map (offsets.txt dataMap). Header offsets are relative to dataMap, node offsets to the node.
+    /// Buckets between start and end are 8 byte pointers to linked lists of nodes.
+    /// </summary>
+    public class ScoreMapLayout
+    {
+        /// <summary>Pointer to the null node (empty bucket marker), int64</summary>
+        public int NullNode = -0x10;
+        /// <summary>Pointer to the first bucket, int64</summary>
+        public int BucketsStart = 0x0;
+        /// <summary>Pointer past the last bucket, int64</summary>
+        public int BucketsEnd = 0x8;
+        public int NodeSize = 0x40;
+        /// <summary>Next node pointer, int64</summary>
+        public int Next = 0x0;
+        /// <summary>Previous node pointer, int64</summary>
+        public int Prev = 0x8;
+        /// <summary>Difficulty 0..4 (B N H A L), int32</summary>
+        public int Difficulty = 0x10;
+        public int Song = 0x14;
+        /// <summary>0 SP, 1 DP, int32</summary>
+        public int PlayType = 0x18;
+        public int Score = 0x20;
+        public int MissCount = 0x24;
+        public int Lamp = 0x30;
+    }
+
+    /// <summary>Play data shown on the result screen (offsets.txt playData), int32 fields</summary>
+    public class PlayDataLayout
+    {
+        public int Song = 0x0;
+        /// <summary>Difficulty 0..9 (SPB ... DPL)</summary>
+        public int Difficulty = 0x4;
+        public int Lamp = 0x18;
+    }
+
+    /// <summary>Judge counts of the current / last play (offsets.txt judgeData), int32 fields. P1 and P2 sides are separate</summary>
+    public class JudgeLayout
+    {
+        public int P1Pgreat = 0x00;
+        public int P1Great = 0x04;
+        public int P1Good = 0x08;
+        public int P1Bad = 0x0C;
+        public int P1Poor = 0x10;
+        public int P2Pgreat = 0x14;
+        public int P2Great = 0x18;
+        public int P2Good = 0x1C;
+        public int P2Bad = 0x20;
+        public int P2Poor = 0x24;
+        public int P1ComboBreak = 0x28;
+        public int P2ComboBreak = 0x2C;
+        public int P1Fast = 0x30;
+        public int P2Fast = 0x34;
+        public int P1Slow = 0x38;
+        public int P2Slow = 0x3C;
+        /// <summary>Non zero when the play ended early</summary>
+        public int P1MeasureEnd = 0x40;
+        public int P2MeasureEnd = 0x44;
+        /// <summary>Gauge percent</summary>
+        public int P1Gauge = 0x134;
+        public int P2Gauge = 0x138;
+    }
+
+    /// <summary>Play options (offsets.txt playSettings), int32 fields for the P1 side, P2 side values are at + p2Offset</summary>
+    public class SettingsLayout
+    {
+        public int Style = 0x00;
+        public int Gauge = 0x04;
+        public int Assist = 0x08;
+        public int Flip = 0x0C;
+        public int Range = 0x10;
+        /// <summary>Style of the 2P side in DP</summary>
+        public int Style2 = 0x14;
+        public int Battle = 0x20;
+        public int HRan = 0x24;
+        public int P2Offset = 0x48;
+    }
+
+    /// <summary>Chart selected / playing (offsets.txt currentSong), int32 fields</summary>
+    public class CurrentSongLayout
+    {
+        public int Song = 0x0;
+        public int Difficulty = 0x4;
+    }
+
+    /// <summary>
+    /// Game state detection. The play marker is found by searching from judgeData + markerSearchStart for three
+    /// values over 10000 placed 8 bytes apart, the marker is markerFromMagic after the second one (non zero while playing).
+    /// The song select marker (1 on song select) is relative to playSettings.
+    /// </summary>
+    public class GameStateLayout
+    {
+        public int MarkerSearchStart = 0x90;
+        public int MarkerSearchLength = 0x60;
+        public int MarkerFromMagic = 0x18;
+        public int SongSelectMarker = -0x18;
+    }
+
     public class StructLayouts
     {
         public SongLayout Song = new SongLayout();
+        public UnlockLayout Unlock = new UnlockLayout();
+        public ScoreMapLayout ScoreMap = new ScoreMapLayout();
+        public PlayDataLayout PlayData = new PlayDataLayout();
+        public JudgeLayout Judge = new JudgeLayout();
+        public SettingsLayout Settings = new SettingsLayout();
+        public CurrentSongLayout CurrentSong = new CurrentSongLayout();
+        public GameStateLayout GameState = new GameStateLayout();
     }
 
     /// <summary>
@@ -95,6 +212,13 @@ namespace Reflux.Api
         }
 
         public static SongLayout Song => Current.Song;
+        public static UnlockLayout Unlock => Current.Unlock;
+        public static ScoreMapLayout ScoreMap => Current.ScoreMap;
+        public static PlayDataLayout PlayData => Current.PlayData;
+        public static JudgeLayout Judge => Current.Judge;
+        public static SettingsLayout Settings => Current.Settings;
+        public static CurrentSongLayout CurrentSong => Current.CurrentSong;
+        public static GameStateLayout GameState => Current.GameState;
 
         #region Parsing
         static Encoding GetEncoding(string name)
@@ -208,25 +332,36 @@ namespace Reflux.Api
                 var v = f.GetValue(layout);
                 o[CamelCase(f.Name)] = v switch
                 {
-                    int i => (JToken)$"0x{i:X}",
-                    StringField s => new JObject { ["offset"] = $"0x{s.Offset:X}", ["length"] = $"0x{s.Length:X}", ["encoding"] = s.Encoding },
+                    int i => (JToken)Hex(i),
+                    StringField s => new JObject { ["offset"] = Hex(s.Offset), ["length"] = Hex(s.Length), ["encoding"] = s.Encoding },
                     _ => ToJson(v),
                 };
             }
             return o;
         }
 
+        static string Hex(int i) => i < 0 ? $"-0x{-(long)i:X}" : $"0x{i:X}";
+
+        /// <summary>Number as JSON integer, decimal string or (-)0x hex string</summary>
         static bool TryParseInt(JToken t, out int value)
         {
             value = 0;
             if (t == null) { return false; }
             if (t.Type == JTokenType.Integer) { value = (int)t; return true; }
             var s = ((string)t ?? "").Trim();
+            int sign = 1;
+            if (s.StartsWith("-")) { sign = -1; s = s.Substring(1).Trim(); }
+            bool ok;
             if (s.StartsWith("0x", StringComparison.OrdinalIgnoreCase))
             {
-                return int.TryParse(s.Substring(2), NumberStyles.HexNumber, CultureInfo.InvariantCulture, out value);
+                ok = int.TryParse(s.Substring(2), NumberStyles.AllowHexSpecifier, CultureInfo.InvariantCulture, out value) && value >= 0;
             }
-            return int.TryParse(s, NumberStyles.Integer, CultureInfo.InvariantCulture, out value);
+            else
+            {
+                ok = int.TryParse(s, NumberStyles.None, CultureInfo.InvariantCulture, out value);
+            }
+            value *= sign;
+            return ok;
         }
 
         /// <summary>Overwrite the fields given in json (numbers as 0x-hex strings or decimal), returns an error message or null</summary>
@@ -263,8 +398,34 @@ namespace Reflux.Api
             return Validate(target);
         }
 
+        /// <summary>Fields (name, offset, size) that must fit inside a record of the given size</summary>
+        static string CheckInside(string prefix, int recordSize, params (string name, int offset, int size)[] fields)
+        {
+            foreach (var (name, offset, size) in fields)
+            {
+                if (offset < 0 || offset + size > recordSize) { return $"{prefix}.{name} (0x{offset:X}, {size} bytes) is outside the record (0x{recordSize:X})"; }
+            }
+            return null;
+        }
+
         static string Validate(object target)
         {
+            if (target is UnlockLayout u)
+            {
+                if (u.EntrySize < 4 || u.EntrySize > 0x1000) { return "unlock.entrySize must be 4..0x1000"; }
+                return CheckInside("unlock", u.EntrySize, ("id", u.Id, 4), ("type", u.Type, 4), ("unlocks", u.Unlocks, 4));
+            }
+            if (target is ScoreMapLayout m)
+            {
+                if (m.NodeSize < 0x10 || m.NodeSize > 0x1000) { return "scoreMap.nodeSize must be 0x10..0x1000"; }
+                return CheckInside("scoreMap", m.NodeSize, ("next", m.Next, 8), ("prev", m.Prev, 8), ("difficulty", m.Difficulty, 4),
+                    ("song", m.Song, 4), ("playType", m.PlayType, 4), ("score", m.Score, 4), ("missCount", m.MissCount, 4), ("lamp", m.Lamp, 4));
+            }
+            if (target is GameStateLayout g)
+            {
+                if (g.MarkerSearchLength < 12 || g.MarkerSearchLength > 0x10000 || g.MarkerSearchLength % 4 != 0) { return "gameState.markerSearchLength must be a multiple of 4 in 12..0x10000"; }
+                return null;
+            }
             if (!(target is SongLayout l)) { return null; }
             if (l.EntrySize < 0x40 || l.EntrySize > 0x10000) { return "song.entrySize must be 0x40..0x10000"; }
             var checks = new (string name, int offset, int size)[]
@@ -356,6 +517,37 @@ namespace Reflux.Api
                 if (err != null) { ApiServer.Write(ctx, 400, Error("bad_layout", err)); return; }
             }
             int count = int.TryParse(q["count"], out var c) ? Math.Clamp(c, 0, 500) : 5;
+            var which = (q["struct"] ?? "song").ToLowerInvariant();
+            if (which != "song")
+            {
+                using var reader = DebugApi.OpenReader(out var code, out var errorCode, out var error);
+                if (reader == null) { ApiServer.Write(ctx, code, Error(errorCode, error)); return; }
+                object result;
+                try
+                {
+                    result = which switch
+                    {
+                        "unlock" => PreviewUnlock(reader, layout.Unlock, q["start"] ?? "unlockData", count),
+                        "scoremap" => PreviewScoreMap(reader, layout.ScoreMap, q["start"] ?? "dataMap", count),
+                        "playdata" => PreviewFields(reader, layout.PlayData, q["start"] ?? "playData"),
+                        "judge" => PreviewFields(reader, layout.Judge, q["start"] ?? "judgeData"),
+                        "settings" => PreviewSettings(reader, layout.Settings, q["start"] ?? "playSettings"),
+                        "currentsong" => PreviewFields(reader, layout.CurrentSong, q["start"] ?? "currentSong"),
+                        "gamestate" => PreviewGameState(reader, layout.GameState),
+                        _ => null,
+                    };
+                }
+                catch (ArgumentException e)
+                {
+                    ApiServer.Write(ctx, 400, Error("bad_start", e.Message)); return;
+                }
+                if (result == null)
+                {
+                    ApiServer.Write(ctx, 400, Error("unknown_struct", "struct must be song, unlock, scoreMap, playData, judge, settings, currentSong or gameState")); return;
+                }
+                ApiServer.Write(ctx, 200, JsonConvert.SerializeObject(result, ApiState.JsonSettings));
+                return;
+            }
             var l = layout.Song;
 
             var scan = DebugApi.ReadRecords(q["start"] ?? "songList", l.EntrySize, 10000, e => BitConverter.ToInt32(e, 0) == 0);
@@ -398,6 +590,178 @@ namespace Reflux.Api
                 first = Enumerable.Range(0, Math.Min(count, songs.Count)).Select(Entry),
                 last = Enumerable.Range(Math.Max(0, songs.Count - 3), Math.Min(3, songs.Count)).Select(Entry),
             }, ApiState.JsonSettings));
+        }
+
+        static long Resolve(DebugApi.MemoryReader r, string expr)
+        {
+            if (!r.TryResolve(expr, out var address, out var err)) { throw new ArgumentException(err); }
+            return address;
+        }
+
+        static IEnumerable<FieldInfo> IntFields(object layout) =>
+            layout.GetType().GetFields(BindingFlags.Public | BindingFlags.Instance).Where(f => f.FieldType == typeof(int));
+
+        /// <summary>Every int32 field of a flat layout read at start + offset</summary>
+        static object PreviewFields(DebugApi.MemoryReader r, object layout, string startExpr)
+        {
+            var start = Resolve(r, startExpr);
+            var values = new JObject();
+            foreach (var f in IntFields(layout)) { values[CamelCase(f.Name)] = r.Int32(start + (int)f.GetValue(layout)); }
+            return new { start = $"0x{start:X}", layout = ToJson(layout), values };
+        }
+
+        static object PreviewSettings(DebugApi.MemoryReader r, SettingsLayout l, string startExpr)
+        {
+            var start = Resolve(r, startExpr);
+            var p1 = new JObject();
+            var p2 = new JObject();
+            foreach (var f in IntFields(l).Where(f => f.Name != nameof(SettingsLayout.P2Offset)))
+            {
+                int offset = (int)f.GetValue(l);
+                p1[CamelCase(f.Name)] = r.Int32(start + offset);
+                p2[CamelCase(f.Name)] = r.Int32(start + l.P2Offset + offset);
+            }
+            return new
+            {
+                start = $"0x{start:X}",
+                layout = ToJson(l),
+                p1,
+                p2,
+                /* Values as decoded by Settings.cs */
+                legend = "style 0 OFF 1 RANDOM 2 R-RANDOM 3 S-RANDOM 4 MIRROR 5 SYNCHRONIZE 6 SYMMETRY / gauge 0 OFF 1 ASSIST EASY 2 EASY 3 HARD 4 EX HARD / " +
+                         "assist 0 OFF 1 AUTO SCRATCH 2 5KEYS 3 LEGACY NOTE 4 KEY ASSIST 5 ANY KEY / range 0 OFF 1 SUDDEN+ 2 HIDDEN+ 3 SUD+ & HID+ 4 LIFT 5 LIFT & SUD+",
+            };
+        }
+
+        static object PreviewUnlock(DebugApi.MemoryReader r, UnlockLayout l, string startExpr, int count)
+        {
+            var start = Resolve(r, startExpr);
+            var entries = new List<(long address, int id, int type, int unlocks)>();
+            bool endFound = false;
+            const int perChunk = 256;
+            while (!endFound && entries.Count < 10000)
+            {
+                long chunkStart = start + (long)entries.Count * l.EntrySize;
+                var data = r.Read(chunkStart, perChunk * l.EntrySize);
+                for (int i = 0; i < perChunk; i++)
+                {
+                    int o = i * l.EntrySize;
+                    int id = BitConverter.ToInt32(data, o + l.Id);
+                    if (id == 0) { endFound = true; break; }
+                    entries.Add((chunkStart + o, id, BitConverter.ToInt32(data, o + l.Type), BitConverter.ToInt32(data, o + l.Unlocks)));
+                }
+            }
+            var db = Utils.songDb;
+            int notIncreasing = Enumerable.Range(1, Math.Max(0, entries.Count - 1)).Count(i => entries[i].id <= entries[i - 1].id);
+            int outOfRange = entries.Count(e => e.id < 1000 || e.id > 99999);
+            int badType = entries.Count(e => e.type < 1 || e.type > 3);
+            int badBits = entries.Count(e => (e.unlocks & ~0x3FF) != 0);
+            object Entry((long address, int id, int type, int unlocks) e) => new { address = $"0x{e.address:X}", id = e.id.ToString("D5"), e.type, unlocks = $"0x{e.unlocks:X3}" };
+            return new
+            {
+                start = $"0x{start:X}",
+                layout = ToJson(l),
+                summary = new
+                {
+                    entries = entries.Count,
+                    endFound,
+                    songListEntries = db.Count,
+                    notInSongList = db.Count == 0 ? (int?)null : entries.Count(e => !db.ContainsKey(e.id.ToString("D5"))),
+                    idsNotIncreasing = notIncreasing,
+                    idsOutOfRange = outOfRange,
+                    badType,
+                    badUnlockBits = badBits,
+                    looksValid = endFound && entries.Count >= 100 && outOfRange == 0 && badType == 0 && badBits == 0,
+                },
+                first = entries.Take(count).Select(Entry),
+                last = entries.Skip(Math.Max(0, entries.Count - 3)).Select(Entry),
+            };
+        }
+
+        static object PreviewScoreMap(DebugApi.MemoryReader r, ScoreMapLayout l, string startExpr, int count)
+        {
+            var map = Resolve(r, startExpr);
+            long nullNode = r.Int64(map + l.NullNode);
+            long bucketsStart = r.Int64(map + l.BucketsStart);
+            long bucketsEnd = r.Int64(map + l.BucketsEnd);
+            long size = bucketsEnd - bucketsStart;
+            var header = new { map = $"0x{map:X}", nullNode = $"0x{nullNode:X}", bucketsStart = $"0x{bucketsStart:X}", bucketsEnd = $"0x{bucketsEnd:X}" };
+            if (size <= 0 || size > 64 * 1024 * 1024 || size % 8 != 0)
+            {
+                return new { layout = ToJson(l), header, summary = new { looksValid = false, error = "bucketsEnd - bucketsStart is not a sane size" } };
+            }
+            var buckets = r.Read(bucketsStart, (int)size);
+            var db = Utils.songDb;
+            var seen = new HashSet<long>();
+            var nodes = new List<(long address, int song, int diff, int playType, int score, int miss, int lamp)>();
+            int nonEmpty = 0;
+            bool truncated = false;
+            for (int i = 0; i < buckets.Length / 8 && !truncated; i++)
+            {
+                long p = BitConverter.ToInt64(buckets, i * 8);
+                if (p == 0 || p == nullNode || p == 0x494fdce0) { continue; } /* 0x494fdce0: skipped by ScoreMap.LoadMap as well */
+                nonEmpty++;
+                while (p != 0 && p != nullNode && seen.Add(p))
+                {
+                    if (nodes.Count >= 200000) { truncated = true; break; }
+                    var n = r.Read(p, l.NodeSize);
+                    nodes.Add((p, BitConverter.ToInt32(n, l.Song), BitConverter.ToInt32(n, l.Difficulty), BitConverter.ToInt32(n, l.PlayType),
+                        BitConverter.ToInt32(n, l.Score), BitConverter.ToInt32(n, l.MissCount), BitConverter.ToInt32(n, l.Lamp)));
+                    p = BitConverter.ToInt64(n, l.Next);
+                }
+            }
+            int badDiff = nodes.Count(n => n.diff < 0 || n.diff > 4);
+            int badPlayType = nodes.Count(n => n.playType < 0 || n.playType > 1);
+            int badLamp = nodes.Count(n => n.lamp < 0 || n.lamp > 7);
+            int badScore = nodes.Count(n => n.score < 0 || n.score > 20000);
+            int unknownSong = db.Count == 0 ? 0 : nodes.Count(n => !db.ContainsKey(n.song.ToString("D5")));
+            return new
+            {
+                layout = ToJson(l),
+                header,
+                summary = new
+                {
+                    buckets = buckets.Length / 8,
+                    nonEmptyBuckets = nonEmpty,
+                    nodes = nodes.Count,
+                    truncated,
+                    songListEntries = db.Count,
+                    unknownSong,
+                    badDifficulty = badDiff,
+                    badPlayType,
+                    badLamp,
+                    badScore,
+                    looksValid = nodes.Count > 0 && badDiff == 0 && badPlayType == 0 && badLamp == 0 && badScore == 0,
+                },
+                first = nodes.Take(count).Select(n => new
+                {
+                    address = $"0x{n.address:X}", song = n.song.ToString("D5"), difficulty = n.diff, playType = n.playType,
+                    score = n.score, missCount = n.miss, lamp = n.lamp,
+                }),
+            };
+        }
+
+        static object PreviewGameState(DebugApi.MemoryReader r, GameStateLayout l)
+        {
+            var judge = Resolve(r, "judgeData");
+            var settings = Resolve(r, "playSettings");
+            /* Same search as Utils.FindPlayStateMarker */
+            long searchStart = judge + l.MarkerSearchStart;
+            var buf = r.Read(searchStart, l.MarkerSearchLength);
+            var big = Enumerable.Range(0, buf.Length / 4).Select(i => i * 4).Where(i => BitConverter.ToInt32(buf, i) > 10000).Take(3).ToList();
+            bool found = big.Count >= 3 && big[1] - big[0] == 8 && big[2] - big[1] == 8;
+            long? marker = found ? searchStart + big[1] + l.MarkerFromMagic : (long?)null;
+            int? markerValue = marker is long m ? r.Int32(m) : (int?)null;
+            long songSelect = settings + l.SongSelectMarker;
+            int songSelectValue = r.Int32(songSelect);
+            var status = JObject.Parse(ApiState.StatusJson());
+            return new
+            {
+                layout = ToJson(l),
+                playMarker = new { found, address = marker is long a ? $"0x{a:X}" : null, value = markerValue, meaning = "non zero while playing" },
+                songSelectMarker = new { address = $"0x{songSelect:X}", value = songSelectValue, meaning = "1 on song select (checked only after a play)" },
+                mainLoop = new { playMarkerInUse = Utils.playMarkerAvailable ? $"0x{Utils.playMarkerAddress:X}" : null, gameState = (string)status["gameState"] },
+            };
         }
         #endregion
 

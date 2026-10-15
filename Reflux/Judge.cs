@@ -20,27 +20,27 @@
         /// </summary>
         public void Fetch()
         {
-            short word = 4;
+            var l = Api.Layout.Judge; /* Field positions from layout.json or built-in defaults */
 
             var style = PlayType.P1;
-            var p1pgreat = Utils.ReadInt32(Offsets.JudgeData, 0);
-            var p1great = Utils.ReadInt32(Offsets.JudgeData, word);
-            var p1good = Utils.ReadInt32(Offsets.JudgeData, word * 2);
-            var p1bad = Utils.ReadInt32(Offsets.JudgeData, word * 3);
-            var p1poor = Utils.ReadInt32(Offsets.JudgeData, word * 4);
-            var p2pgreat = Utils.ReadInt32(Offsets.JudgeData, word * 5);
-            var p2great = Utils.ReadInt32(Offsets.JudgeData, word * 6);
-            var p2good = Utils.ReadInt32(Offsets.JudgeData, word * 7);
-            var p2bad = Utils.ReadInt32(Offsets.JudgeData, word * 8);
-            var p2poor = Utils.ReadInt32(Offsets.JudgeData, word * 9);
-            var p1cb = Utils.ReadInt32(Offsets.JudgeData, word * 10);
-            var p2cb = Utils.ReadInt32(Offsets.JudgeData, word * 11);
-            var p1fast = Utils.ReadInt32(Offsets.JudgeData, word * 12);
-            var p2fast = Utils.ReadInt32(Offsets.JudgeData, word * 13);
-            var p1slow = Utils.ReadInt32(Offsets.JudgeData, word * 14);
-            var p2slow = Utils.ReadInt32(Offsets.JudgeData, word * 15);
-            var p1measure_end = Utils.ReadInt32(Offsets.JudgeData, word * 16);
-            var p2measure_end = Utils.ReadInt32(Offsets.JudgeData, word * 17);
+            var p1pgreat = Utils.ReadInt32(Offsets.JudgeData, l.P1Pgreat);
+            var p1great = Utils.ReadInt32(Offsets.JudgeData, l.P1Great);
+            var p1good = Utils.ReadInt32(Offsets.JudgeData, l.P1Good);
+            var p1bad = Utils.ReadInt32(Offsets.JudgeData, l.P1Bad);
+            var p1poor = Utils.ReadInt32(Offsets.JudgeData, l.P1Poor);
+            var p2pgreat = Utils.ReadInt32(Offsets.JudgeData, l.P2Pgreat);
+            var p2great = Utils.ReadInt32(Offsets.JudgeData, l.P2Great);
+            var p2good = Utils.ReadInt32(Offsets.JudgeData, l.P2Good);
+            var p2bad = Utils.ReadInt32(Offsets.JudgeData, l.P2Bad);
+            var p2poor = Utils.ReadInt32(Offsets.JudgeData, l.P2Poor);
+            var p1cb = Utils.ReadInt32(Offsets.JudgeData, l.P1ComboBreak);
+            var p2cb = Utils.ReadInt32(Offsets.JudgeData, l.P2ComboBreak);
+            var p1fast = Utils.ReadInt32(Offsets.JudgeData, l.P1Fast);
+            var p2fast = Utils.ReadInt32(Offsets.JudgeData, l.P2Fast);
+            var p1slow = Utils.ReadInt32(Offsets.JudgeData, l.P1Slow);
+            var p2slow = Utils.ReadInt32(Offsets.JudgeData, l.P2Slow);
+            var p1measure_end = Utils.ReadInt32(Offsets.JudgeData, l.P1MeasureEnd);
+            var p2measure_end = Utils.ReadInt32(Offsets.JudgeData, l.P2MeasureEnd);
 
             if (p1pgreat + p1great + p1good + p1bad + p1poor == 0)
             {

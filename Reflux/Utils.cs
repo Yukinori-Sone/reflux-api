@@ -208,8 +208,9 @@ namespace Reflux
         {
             playMarkerAvailable = false;
             playMarkerAddress = 0;
-            long offset = Offsets.JudgeData + 144;
-            var buffer = new byte[96];
+            var l = Api.Layout.GameState; /* Was judgeData + 144, 96 bytes, marker 6 words after the magic value */
+            long offset = Offsets.JudgeData + l.MarkerSearchStart;
+            var buffer = new byte[l.MarkerSearchLength];
             int nRead = 0;
             short word = 4;
             ReadProcessMemory((int)handle, offset, buffer, buffer.Length, ref nRead);
@@ -227,7 +228,7 @@ namespace Reflux
             {
                 // Judge offset + 144 (get close to section with search pattern) + offset for second magic value + 6 32-bit integers later
                 long magicNumberAddress = offset + judgeEnd.ElementAt(1);
-                playMarkerAddress = magicNumberAddress + (word * 6);
+                playMarkerAddress = magicNumberAddress + l.MarkerFromMagic;
                 playMarkerAvailable = true;
                 Console.WriteLine($"Found play state marker at {playMarkerAddress:X}");
             }
@@ -250,7 +251,7 @@ namespace Reflux
 
             /* Cannot go from song select to result screen anyway */
             if (currentState == GameState.songSelect) { return currentState; }
-            marker = ReadInt32(Offsets.PlaySettings - word * 6, 0);
+            marker = ReadInt32(Offsets.PlaySettings + Api.Layout.GameState.SongSelectMarker, 0); /* Was - word * 6 */
             if (marker == 1)
             {
                 return GameState.songSelect;
@@ -378,11 +379,9 @@ namespace Reflux
         /// <returns></returns>
         public static Chart FetchCurrentChart()
         {
-            byte[] buffer = new byte[32];
-            int nRead = 0;
-            ReadProcessMemory((int)handle, Offsets.CurrentSong, buffer, buffer.Length, ref nRead);
-            int songid = BytesToInt32(buffer, 0);
-            int diff = BytesToInt32(buffer, 4);
+            var l = Api.Layout.CurrentSong; /* Field positions from layout.json or built-in defaults */
+            int songid = ReadInt32(Offsets.CurrentSong, l.Song);
+            int diff = ReadInt32(Offsets.CurrentSong, l.Difficulty);
             return new Chart() { songID = songid.ToString("D5"), difficulty = (Difficulty)diff };
         }
         /// <summary>
@@ -489,7 +488,7 @@ namespace Reflux
         public static Dictionary<string, UnlockData> GetUnlockStates()
         {
             int songAmount = songDb.Count;
-            int structSize = Marshal.SizeOf(typeof(UnlockData));
+            int structSize = Api.Layout.Unlock.EntrySize; /* Was Marshal.SizeOf(typeof(UnlockData)) = 32 */
             byte[] buf = new byte[structSize * songAmount];
             int nRead = 0;
 
@@ -521,17 +520,18 @@ namespace Reflux
         {
             int position = 0;
             int extra = 0;
-            int structSize = Marshal.SizeOf(typeof(UnlockData));
+            var l = Api.Layout.Unlock; /* Field positions from layout.json or built-in defaults */
+            int structSize = l.EntrySize;
             while (position < buf.Length)
             {
                 var sData = buf.Skip(position).Take(structSize).ToArray();
                 UnlockData data = new UnlockData
                 {
-                    songID = BytesToInt32(sData, 0),
+                    songID = BytesToInt32(sData, l.Id),
 
-                    type = (UnlockType)BytesToInt32(sData, 4),
+                    type = (UnlockType)BytesToInt32(sData, l.Type),
 
-                    unlocks = BytesToInt32(sData, 8)
+                    unlocks = BytesToInt32(sData, l.Unlocks)
                 };
                 string id = data.songID.ToString("D5");
                 if (id == "00000") /* Take into account where songDb is populated with unreleased songs */

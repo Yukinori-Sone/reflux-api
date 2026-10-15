@@ -280,6 +280,27 @@ namespace Reflux.Api
             return true;
         }
 
+        /// <summary>Own read-only handle to the game for API requests, with address expressions resolved like the dump endpoint</summary>
+        public sealed class MemoryReader : IDisposable
+        {
+            readonly IntPtr handle;
+            readonly long moduleBase;
+            internal MemoryReader(IntPtr handle, long moduleBase) { this.handle = handle; this.moduleBase = moduleBase; }
+            public byte[] Read(long address, int length) => DebugApi.Read(handle, address, length, out _);
+            public int Int32(long address) => BitConverter.ToInt32(Read(address, 4), 0);
+            public long Int64(long address) => BitConverter.ToInt64(Read(address, 8), 0);
+            public bool TryResolve(string expr, out long address, out string error) => TryResolveAddress(expr, moduleBase, out address, out error);
+            public void Dispose() => CloseHandle(handle);
+        }
+
+        public static MemoryReader OpenReader(out int code, out string errorCode, out string error)
+        {
+            code = 200;
+            errorCode = null;
+            if (!TryOpen(out _, out var moduleBase, out var handle, out error)) { code = 409; errorCode = "not_attached"; return null; }
+            return new MemoryReader(handle, moduleBase);
+        }
+
         /// <summary>
         /// Read fixed size records from startExpr until isEnd matches a record or maxRecords is reached (for layout previews)
         /// </summary>

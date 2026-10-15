@@ -71,17 +71,16 @@ namespace Reflux
 
             timestamp = DateTime.UtcNow;
 
-            short word = 4;
-            short gauge_offset_P1 = 77;
-            short gauge_offset_P2 = 78;
+            var l = Api.Layout.PlayData; /* Field positions from layout.json or built-in defaults */
+            var lj = Api.Layout.Judge;
 
             Difficulty difficulty;
             try
             {
-                var song = Utils.ReadInt32(Offsets.PlayData, 0);
-                difficulty = (Difficulty)Utils.ReadInt32(Offsets.PlayData, word);
-                clearLamp = (Lamp)Utils.ReadInt32(Offsets.PlayData, word * 6);
-                gauge = Utils.ReadInt32(Offsets.JudgeData, word * gauge_offset_P1) + Utils.ReadInt32(Offsets.JudgeData, word * gauge_offset_P2); /* It's not in the place near the play data
+                var song = Utils.ReadInt32(Offsets.PlayData, l.Song);
+                difficulty = (Difficulty)Utils.ReadInt32(Offsets.PlayData, l.Difficulty);
+                clearLamp = (Lamp)Utils.ReadInt32(Offsets.PlayData, l.Lamp);
+                gauge = Utils.ReadInt32(Offsets.JudgeData, lj.P1Gauge) + Utils.ReadInt32(Offsets.JudgeData, lj.P2Gauge); /* It's not in the place near the play data
                                                                                                                                                   * Since the gauge percent in judge data is separate for P1 and P2
                                                                                                                                                   * they need to be merged */
 
