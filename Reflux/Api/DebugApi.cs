@@ -280,6 +280,37 @@ namespace Reflux.Api
             return true;
         }
 
+        /// <summary>
+        /// Read fixed size records from startExpr until isEnd matches a record or maxRecords is reached (for layout previews)
+        /// </summary>
+        public static (List<byte[]> records, long start, bool endFound, int code, string errorCode, string error) ReadRecords(
+            string startExpr, int recordSize, int maxRecords, Func<byte[], bool> isEnd)
+        {
+            var records = new List<byte[]>();
+            if (!TryOpen(out _, out var moduleBase, out var handle, out var err)) { return (records, 0, false, 409, "not_attached", err); }
+            try
+            {
+                if (!TryResolveAddress(startExpr, moduleBase, out var start, out err)) { return (records, 0, false, 400, "bad_start", err); }
+                const int perChunk = 256;
+                while (records.Count < maxRecords)
+                {
+                    var data = Read(handle, start + (long)records.Count * recordSize, perChunk * recordSize, out _);
+                    for (int i = 0; i < perChunk && records.Count < maxRecords; i++)
+                    {
+                        var r = new byte[recordSize];
+                        Buffer.BlockCopy(data, i * recordSize, r, 0, recordSize);
+                        if (isEnd(r)) { return (records, start, true, 200, null, null); }
+                        records.Add(r);
+                    }
+                }
+                return (records, start, false, 200, null, null);
+            }
+            finally
+            {
+                CloseHandle(handle);
+            }
+        }
+
         /// <summary>GET /api/memory?address=songList+0x630&amp;length=0x100&amp;format=hex|bin</summary>
         public static void Dump(System.Net.HttpListenerContext ctx)
         {

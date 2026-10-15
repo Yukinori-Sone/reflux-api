@@ -203,12 +203,14 @@ namespace Reflux
                     Thread.Sleep(1000); /* Extra sleep just to avoid potentially undiscovered race conditions */
                     Utils.FetchSongDataBase();
 
-                    var lastID = Utils.songDb.Keys.Last();
                     // Check notecount of last ID, in case the song list wasn't completely populated when read
-                    if (Utils.songDb[lastID].totalNotes[3] < 10)
+                    var songCheck = Api.Layout.CheckSongs(Utils.songDb.Values.ToList()); /* A wrong struct layout gives garbage that crashes later */
+                    if (!songCheck.LooksValid || Utils.songDb[Utils.songDb.Keys.Last()].totalNotes[3] < 10)
                     {
                         Utils.Debug("Notecount data seems bad, retrying fetching in case list wasn't fully populated.");
+                        ApiState.SetAttachState(AttachState.Loading, $"Song list doesn't look right ({songCheck}). If this stays, check the struct layout with GET /api/layout/preview");
                         Thread.Sleep(5000);
+                        if (ApiState.ConsumeRetry()) { processExit = true; break; } /* Re-attach requested, e.g. layout changed through the API */
                     }
                     else
                     {

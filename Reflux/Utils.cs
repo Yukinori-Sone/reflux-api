@@ -109,7 +109,6 @@ namespace Reflux
         public static IntPtr handle;
         public static long playMarkerAddress = 0;
         public static bool playMarkerAvailable = false;
-        readonly static int songBufferSize = 0x730; /* 2026101400: was 0x630 */
         /// <summary>
         /// DB for keeping track of unlocks and potential changes
         /// </summary>
@@ -275,11 +274,12 @@ namespace Reflux
         {
             Dictionary<string, SongInfo> result = new Dictionary<string, SongInfo>();
             Debug("Fetching available songs");
+            var layout = Api.Layout.Song;
             var current_position = 0;
             while (true)
             {
 
-                var songInfo = FetchSongInfo(Offsets.SongList + current_position);
+                var songInfo = FetchSongInfo(Offsets.SongList + current_position, layout);
 
                 if (songInfo.title == null)
                 {
@@ -310,7 +310,7 @@ namespace Reflux
                     result.Add(songInfo.ID, songInfo);
                 }
 
-                current_position += songBufferSize;
+                current_position += layout.EntrySize;
 
             }
             songDb = result;
@@ -449,106 +449,10 @@ namespace Reflux
         /// </summary>
         /// <param name="position">Start position of song metadata</param>
         /// <returns>SongInfo object containing all metadata</returns>
-        /// <summary>
-        /// Read a zero terminated UTF-16 string from a fixed size field
-        /// </summary>
-        private static string Utf16String(byte[] buffer, int offset, int length)
+        private static SongInfo FetchSongInfo(long position, Api.SongLayout layout)
         {
-            var s = Encoding.Unicode.GetString(buffer, offset, length);
-            int end = s.IndexOf('\0');
-            return (end >= 0 ? s.Substring(0, end) : s).TrimEnd();
-        }
-        private static SongInfo FetchSongInfo(long position)
-        {
-            int bytesRead = 0;
-            short slab = 64;
-            short string_slab = 128; // Strings takes double the space now, except for the LED ticker text
-            short title_slab = 256; /* 2026101400: title is UTF-16 in 256 bytes */
-            short word = 4; /* Int32 */
-            int offset = 0;
-            int idPosition = 1456; /* 2026101400: was 1200 before the title grew and a 128 byte field was added after artist */
-
-            byte[] buffer = new byte[songBufferSize];
-
-            ReadProcessMemory((int)handle, position, buffer, buffer.Length, ref bytesRead);
-
-            var title1 = Utf16String(buffer, offset, title_slab);
-            offset += title_slab;
-
-            if (Utils.BytesToInt32(buffer.Take(slab).ToArray(), 0) == 0)
-            {
-                return new SongInfo();
-            }
-
-            var title2 = Encoding.GetEncoding("Shift-JIS").GetString(buffer.Skip(offset).Take(slab).Where(x => x != 0).ToArray()).TrimEnd();
-            offset += slab;
-            var genre = Utf16String(buffer, offset, string_slab);
-            offset += string_slab;
-            var artist = Utf16String(buffer, offset, string_slab);
-            offset += string_slab;
-            offset += string_slab; /* 2026101400: unknown 128 byte field, empty for every song seen so far */
-
-            var folderBytes = buffer.Skip(offset).Skip(24).Take(1).ToList();
-            var folder = BitConverter.ToInt32(new byte[] { folderBytes[0], 0, 0, 0 });
-
-            var diff_section = buffer.Skip(offset + slab / 2).Take(10).ToArray();
-            offset += 48;
-            var diff_levels = new int[] {
-                Convert.ToInt32(diff_section[0]),
-                Convert.ToInt32(diff_section[1]),
-                Convert.ToInt32(diff_section[2]),
-                Convert.ToInt32(diff_section[3]),
-                Convert.ToInt32(diff_section[4]),
-                Convert.ToInt32(diff_section[5]),
-                Convert.ToInt32(diff_section[6]),
-                Convert.ToInt32(diff_section[7]),
-                Convert.ToInt32(diff_section[8]),
-                Convert.ToInt32(diff_section[9]) };
-
-            var bpms_bytes = buffer.Skip(offset).Take(80).ToArray();
-            offset += slab * 2;
-            var bpmArray = Enumerable.Range(0, 20).Select(i => Utils.BytesToInt32(bpms_bytes, word * i)).ToArray();
-            var bpmList = new List<string>();
-            for (int i = 0; i < 20; i += 2)
-            {
-                var bpmMax = bpmArray[i];
-                var bpmMin = bpmArray[i + 1];
-                bpmList.Add(bpmMin != 0 ? $"{bpmMin:000}~{bpmMax:000}" : $"{bpmMax:000}");
-            }
-            string[] bpms = bpmList.ToArray();
-
-            var noteCounts_bytes = buffer.Skip(offset).Take(slab).ToArray();
-            var noteCounts = new int[] {
-                Utils.BytesToInt32(noteCounts_bytes, 0),
-                Utils.BytesToInt32(noteCounts_bytes, word),
-                Utils.BytesToInt32(noteCounts_bytes, word * 2),
-                Utils.BytesToInt32(noteCounts_bytes, word * 3),
-                Utils.BytesToInt32(noteCounts_bytes, word * 4),
-                Utils.BytesToInt32(noteCounts_bytes, word * 5),
-                Utils.BytesToInt32(noteCounts_bytes, word * 6),
-                Utils.BytesToInt32(noteCounts_bytes, word * 7),
-                Utils.BytesToInt32(noteCounts_bytes, word * 8),
-                Utils.BytesToInt32(noteCounts_bytes, word * 9)
-            };
-
-            var idarray = buffer.Skip(idPosition).Take(4).ToArray();
-            var ID = BitConverter.ToInt32(idarray, 0).ToString("D5");
-
-            var song = new SongInfo
-            {
-                ID = ID,
-                title = title1,
-                title_english = title2,
-                genre = genre,
-                artist = artist,
-                bpms = bpms,
-                totalNotes = noteCounts,
-                level = diff_levels,
-                folder = folder
-            };
-
-            return song;
-
+            /* Field positions come from Api.Layout (layout.json or built-in defaults) so a moved field can be fixed without a rebuild */
+            return Api.Layout.ParseSong(ReadRaw(position, layout.EntrySize), layout);
         }
         #endregion
 

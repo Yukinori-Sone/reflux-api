@@ -87,8 +87,11 @@ namespace Reflux.Api
                     case "/api":
                         Write(ctx, 200, "{\"endpoints\":[\"GET /api/status\",\"GET /api/songs\",\"GET /api/charts\",\"GET /api/scores\",\"GET /api/latest\",\"GET /api/session\",\"POST /api/attach/retry\"," +
                             "\"GET /api/offsets\",\"PUT /api/offsets\",\"GET /api/memory/info\",\"GET /api/memory?address=&length=&format=hex|bin&encoding=sjis\"," +
-                            "\"GET /api/memory/search?start=&length=&hex=|text=&encoding=|int32=|int64=&max=\"]}");
+                            "\"GET /api/memory/search?start=&length=&hex=|text=&encoding=|int32=|int64=&max=\"," +
+                            "\"GET /api/layout\",\"PUT /api/layout\",\"GET|POST /api/layout/preview?start=&count=\"]}");
                         return;
+                    case "/api/layout": Write(ctx, 200, Layout.GetJson()); return;
+                    case "/api/layout/preview": Layout.Preview(ctx, null); return;
                     case "/api/status": Write(ctx, 200, ApiState.StatusJson()); return;
                     case "/api/songs": Write(ctx, 200, ApiState.SongsJson()); return;
                     case "/api/charts": Write(ctx, 200, ApiState.ChartsJson()); return;
@@ -114,6 +117,17 @@ namespace Reflux.Api
                 Write(ctx, code, json);
                 return;
             }
+            else if ((method == "PUT" || method == "POST") && path == "/api/layout")
+            {
+                var (code, json) = Layout.Put(ReadBody(req));
+                Write(ctx, code, json);
+                return;
+            }
+            else if (method == "POST" && path == "/api/layout/preview")
+            {
+                Layout.Preview(ctx, ReadBody(req));
+                return;
+            }
             else if (method == "POST")
             {
                 switch (path)
@@ -126,6 +140,12 @@ namespace Reflux.Api
                 }
             }
             Write(ctx, 404, Error("not_found", $"{method} {path}"));
+        }
+
+        static string ReadBody(HttpListenerRequest req)
+        {
+            using var reader = new StreamReader(req.InputStream, Encoding.UTF8);
+            return reader.ReadToEnd();
         }
 
         static string Error(string code, string message)

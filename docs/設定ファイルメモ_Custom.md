@@ -16,6 +16,8 @@
 | 【追加】別アプリ | Reflux.Client の `client.json` / `reflux-client.db` | 別PC側のクライアント（コアとは別の exe） |
 | 【変更】動作 | セッション TSV/JSON | INF 再起動で記録が消える本家の不具合（Original の ※1）を修正 |
 | 【変更】動作 | `offsets.txt` / `archive/` | API からオフセットを書き換えられる。`[Api]` 有効時はバージョン不一致でも対話式探索にすぐ入らず待機する |
+| 【追加】ファイル | `layout.json` | 曲リストの構造体の配置（1曲のサイズ・各項目の位置と文字コード）。無ければ組み込みの初期値。API で書き換える |
+| 【変更】動作 | 曲リストの読み込み | 読み込んだ曲リストがおかしければ（曲数・ID の並び・レベル・ノーツ数）先へ進まず待つ。本家は先へ進んで落ちることがある |
 
 ## 共通の注意（差分）
 
@@ -41,6 +43,9 @@
   - `GET /api/memory/info`: bm2dx のベースアドレス・サイズ
   - `GET /api/memory?address=…&length=…&format=hex|bin&encoding=sjis`: メモリダンプ（最大 16MB、初期値は 16進表示で 0x100 バイト）。`address` は `songList+0x630`、`base+0x1000` のように、オフセット名・`base`・16進数を `+` `-` でつないで書ける
   - `GET /api/memory/search?start=…&length=…&hex=…|text=…&encoding=…|int32=…|int64=…&max=…`: バイト列・文字列（既定 Shift-JIS）・数値の検索（最大 1GB、ヒットは最大 1000 件）
+  - `GET /api/layout`: 使用中の構造体の配置（`layout.json` か組み込みの初期値）と初期値
+  - `PUT /api/layout`: `layout.json` を書き換えて再アタッチ。本文は `{"song":{"entrySize":"0x730","title":{"offset":"0x0","length":"0x100","encoding":"utf16"},"id":"0x5B0"},"reset":false,"reattach":true}`（書いた項目だけ変わる。`reset: true` で初期値から。文字コードは `utf16` / `sjis` / `utf8`）
+  - `GET /api/layout/preview?start=songList&count=5`、`POST`（本文は `PUT` と同じ形式、保存しない）: その配置でメモリの曲リストを読んだ結果。先頭 `count` 件・末尾 3 件と、全体のチェック結果（`summary.looksValid`）を返す
 - `apikey` を設定していなければ、LAN 内の誰でもオフセットを書き換え・メモリを読めるので、`host = +` で公開するときは `apikey` の設定を推奨
 
 `host = +` にする場合の事前準備（ゲームPCで1回だけ、管理者権限で）:
@@ -74,7 +79,8 @@ New-NetFirewallRule -DisplayName "Reflux API" -Direction Inbound -Protocol TCP -
 | ファイル | 本家の動き | 独自版の動き |
 |---|---|---|
 | `offsets.txt` | バージョン不一致のとき、サーバーから取得できなければすぐ対話式のオフセット探索に入る（コンソールでの入力待ち） | サーバーから取得できなければ、`PUT /api/offsets` を待つ（コンソールで Enter を押せば本家どおり対話式探索）。`PUT /api/offsets` が来るたびに書き換えて再アタッチする |
-| `archive/` | 置き換え時に旧 `offsets.txt` を `archive/<バージョン>.txt` へ移動（同じ名前なら上書き） | `PUT /api/offsets` のときは `archive/<バージョン>_<日時>.txt` にコピーしてから書き換える（上書きしない） |
+| `archive/` | 置き換え時に旧 `offsets.txt` を `archive/<バージョン>.txt` へ移動（同じ名前なら上書き） | `PUT /api/offsets` のときは `archive/<バージョン>_<日時>.txt` にコピーしてから書き換える（上書きしない）。`PUT /api/layout` のときも、旧 `layout.json` を `archive/layout_<日時>.json` にコピーする |
+| `layout.json` | ―（構造体の配置はコードに固定） | 曲リストの配置をここから読む（ファイルが変わればアタッチ時に読み直す）。無ければ組み込みの初期値（2026101400 用）。`[Api]` が無効でも、ファイルがあれば使われる |
 
 本家の不具合として直したものは [本家不具合修正一覧.md](本家不具合修正一覧.md) にも記録している。
 
