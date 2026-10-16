@@ -16,7 +16,7 @@
 | 【追加】別アプリ | Reflux.Client の `client.json` / `reflux-client.db` | 別PC側のクライアント（コアとは別の exe） |
 | 【変更】動作 | セッション TSV/JSON | INF 再起動で記録が消える本家の不具合（Original の ※1）を修正 |
 | 【変更】動作 | `offsets.txt` / `archive/` | API からオフセットを書き換えられる。`[Api]` 有効時はバージョン不一致でも対話式探索にすぐ入らず待機する |
-| 【追加】ファイル | `layout.json` | 曲リストの構造体の配置（1曲のサイズ・各項目の位置と文字コード）。無ければ組み込みの初期値。API で書き換える |
+| 【追加】ファイル | `layout.json` | 構造体の配置（曲リスト・解禁データ・自己ベスト・プレーデータ・判定・オプション・選曲中の譜面・状態判定の目印の、サイズや各項目の位置）。無ければ組み込みの初期値。API で書き換える |
 | 【変更】動作 | 曲リストの読み込み | 読み込んだ曲リストがおかしければ（曲数・ID の並び・レベル・ノーツ数）先へ進まず待つ。本家は先へ進んで落ちることがある |
 
 ## 共通の注意（差分）
@@ -37,15 +37,13 @@
 
 - API はリクエストでゲームのメモリを読まない（メインループが2秒ごとに読んだ結果を返すだけ）。
   使えるエンドポイントは `GET /api/status|songs|charts|scores|latest|session`、`POST /api/attach/retry`
-- 例外として、ゲームのアップデート対応用に次のエンドポイントがある（リクエストのたびにメモリを読む／ファイルを書く）
+- 例外として、ゲームのアップデート対応用に次のエンドポイントがある（リクエストのたびにメモリを読む／ファイルを書く）。各エンドポイントの詳細は [API仕様.md](API仕様.md)
   - `GET /api/offsets`: `offsets.txt` の内容と使用中の値、ゲームのバージョン、bm2dx のベースアドレス
   - `PUT /api/offsets`: `offsets.txt` を書き換えて再アタッチ。本文は `{"version":"P2D:J:B:A:…","offsets":{"songList":"0x…"},"reattach":true}`（どれも省略可。省略したオフセットは今の値のまま、`version` の省略時は検出したゲームのバージョン）
   - `GET /api/memory/info`: bm2dx のベースアドレス・サイズ
   - `GET /api/memory?address=…&length=…&format=hex|bin&encoding=sjis`: メモリダンプ（最大 16MB、初期値は 16進表示で 0x100 バイト）。`address` は `songList+0x630`、`base+0x1000` のように、オフセット名・`base`・16進数を `+` `-` でつないで書ける
   - `GET /api/memory/search?start=…&length=…&hex=…|text=…&encoding=…|int32=…|int64=…&max=…`: バイト列・文字列（既定 Shift-JIS）・数値の検索（最大 1GB、ヒットは最大 1000 件）
-  - `GET /api/layout`: 使用中の構造体の配置（`layout.json` か組み込みの初期値）と初期値
-  - `PUT /api/layout`: `layout.json` を書き換えて再アタッチ。本文は `{"song":{"entrySize":"0x730","title":{"offset":"0x0","length":"0x100","encoding":"utf16"},"id":"0x5B0"},"reset":false,"reattach":true}`（書いた項目だけ変わる。`reset: true` で初期値から。文字コードは `utf16` / `sjis` / `utf8`）
-  - `GET /api/layout/preview?start=songList&count=5`、`POST`（本文は `PUT` と同じ形式、保存しない）: その配置でメモリの曲リストを読んだ結果。先頭 `count` 件・末尾 3 件と、全体のチェック結果（`summary.looksValid`）を返す
+  - `GET|PUT /api/layout`、`GET|POST /api/layout/preview`: 構造体の配置（`layout.json`）の確認・試し読み・書き換え。形式と初期値は [API仕様.md](API仕様.md)
 - `apikey` を設定していなければ、LAN 内の誰でもオフセットを書き換え・メモリを読めるので、`host = +` で公開するときは `apikey` の設定を推奨
 
 `host = +` にする場合の事前準備（ゲームPCで1回だけ、管理者権限で）:
@@ -80,7 +78,7 @@ New-NetFirewallRule -DisplayName "Reflux API" -Direction Inbound -Protocol TCP -
 |---|---|---|
 | `offsets.txt` | バージョン不一致のとき、サーバーから取得できなければすぐ対話式のオフセット探索に入る（コンソールでの入力待ち） | サーバーから取得できなければ、`PUT /api/offsets` を待つ（コンソールで Enter を押せば本家どおり対話式探索）。`PUT /api/offsets` が来るたびに書き換えて再アタッチする |
 | `archive/` | 置き換え時に旧 `offsets.txt` を `archive/<バージョン>.txt` へ移動（同じ名前なら上書き） | `PUT /api/offsets` のときは `archive/<バージョン>_<日時>.txt` にコピーしてから書き換える（上書きしない）。`PUT /api/layout` のときも、旧 `layout.json` を `archive/layout_<日時>.json` にコピーする |
-| `layout.json` | ―（構造体の配置はコードに固定） | 曲リストの配置をここから読む（ファイルが変わればアタッチ時に読み直す）。無ければ組み込みの初期値（2026101400 用）。`[Api]` が無効でも、ファイルがあれば使われる |
+| `layout.json` | ―（構造体の配置はコードに固定） | 構造体の配置をここから読む（ファイルが変われば次に読むときに反映。曲リストはアタッチ時にだけ読むので、`PUT /api/layout` は再アタッチまで行う）。無ければ組み込みの初期値（2026101400 用）。`[Api]` が無効でも、ファイルがあれば使われる |
 
 本家の不具合として直したものは [本家不具合修正一覧.md](本家不具合修正一覧.md) にも記録している。
 
