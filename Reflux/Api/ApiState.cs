@@ -125,6 +125,7 @@ namespace Reflux.Api
         public static void SetReady(bool playStateDetection)
         {
             lock (sync) { status.PlayStateDetection = playStateDetection; }
+            SetGameState(GameState.songSelect); /* The main loop starts from songSelect and only reports changes */
             SetAttachState(AttachState.Ready, playStateDetection ? null : "Play state marker not found, play results are not recorded");
         }
         public static void SetGameState(GameState state)
