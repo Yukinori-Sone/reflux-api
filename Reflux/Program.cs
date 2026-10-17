@@ -511,8 +511,9 @@ namespace Reflux
 
                         if (state == GameState.songSelect)
                         {
-                            var newUnlocks = Utils.UpdateUnlockStates();
-                            if (Config.Save_local)
+                            /* Api.CoreSettings: how often to check unlocks and write tracker.tsv (defaults: every poll, as upstream) */
+                            var newUnlocks = Api.CoreSettings.ShouldCheckUnlocks() ? Utils.UpdateUnlockStates() : new Dictionary<string, UnlockData>();
+                            if (Config.Save_local && Api.CoreSettings.ShouldWriteTrackerTsv(newUnlocks.Count > 0))
                             {
                                 Utils.Debug("Saving tracker data tsv");
                                 Tracker.SaveTrackerData("tracker.tsv");
@@ -533,7 +534,7 @@ namespace Reflux
                     }
                     finally
                     {
-                        Thread.Sleep(2000);
+                        Thread.Sleep(Api.CoreSettings.PollIntervalMs); /* Was 2000 */
                     }
                 }
 

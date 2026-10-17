@@ -13,6 +13,7 @@
   ssh -N -L 18790:localhost:8790 <ゲームPC>   # 以降 http://localhost:18790/api/... で使える
   ```
 - API はアタッチ前から動く。INFINITAS が起動していなくても `status` などは返る
+- `host = localhost` で待ち受けているときは、接続先も `localhost` と書く（`127.0.0.1` だと Host ヘッダーが合わず 400 になる）
 
 ## 共通
 
@@ -37,6 +38,8 @@
 | `GET /api/latest` | 直前のプレー記録（無ければ `null`） |
 | `GET /api/session` | 今回の Reflux 起動以降のプレー記録（`latest` と同じ形の配列） |
 | `GET /api/clearrates` | 全国のクリアレート（譜面ごと）。下記 |
+| `GET /api/settings` | コアの動作設定（下記）の今の値・初期値・選択肢 |
+| `PUT /api/settings` | 動作設定を変える。本文に書いた項目だけ変わり、その場で反映して `coresettings.json` に保存する |
 | `POST /api/attach/retry` | 再アタッチを要求する（`202`）。オフセット不一致の待機中や、曲リストの読み込みが進まないときにも効く |
 
 ### `GET /api/status`
@@ -70,6 +73,21 @@
 
 - `[{songId, difficulty, rate}]`。`rate` は全プレイヤーのクリアレート（%、小数第2位まで。ゲーム画面は小数第1位に四捨五入して表示）。値の無い譜面は含まない
 - サーバーの集計値をゲームが持っているもの（`layout.json` の `clearRate`）。コアは ready になったときと、選曲画面に戻るたびに読み直す
+
+### コアの動作設定（`/api/settings`、`coresettings.json`）
+
+初期値は本家と同じ動き。クライアントの「コア設定」タブから変えられる。ファイルが無ければ初期値。
+
+| キー | 値 | 初期値 | 内容 |
+|---|---|---|---|
+| `pollIntervalMs` | 500 / 1000 / 2000 / 3000 / 5000 | 2000 | メインループの間隔（ゲームの状態を見る間隔）。プレー中に読むのは4バイトだけ |
+| `unlockCheckSeconds` | -1 / 0 / 1〜3600 | 0 | 選曲画面で解禁状態を読み直す頻度。0 = 毎回、-1 = 選曲画面に戻ったときだけ、N = 最短 N 秒ごと（選曲画面に戻ったときは必ず読む） |
+| `trackerTsv` | `always` / `onChange` / `never` | `always` | 選曲画面での `tracker.tsv` の書き出し。`onChange` はプレーの記録後・解禁状態の変化時・アタッチ後だけ書く |
+| `processPriority` | `normal` / `belowNormal` / `idle` | `normal` | Reflux 自身のプロセス優先度 |
+
+```sh
+curl -X PUT "$A/settings" -d '{"unlockCheckSeconds":-1,"trackerTsv":"onChange","processPriority":"belowNormal"}'
+```
 
 ## ゲーム更新対応用のエンドポイント（リクエストのたびにメモリを読む／ファイルを書く）
 

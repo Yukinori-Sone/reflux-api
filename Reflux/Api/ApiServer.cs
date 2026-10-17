@@ -88,9 +88,10 @@ namespace Reflux.Api
                         Write(ctx, 200, "{\"endpoints\":[\"GET /api/status\",\"GET /api/songs\",\"GET /api/charts\",\"GET /api/scores\",\"GET /api/latest\",\"GET /api/session\",\"GET /api/clearrates\",\"POST /api/attach/retry\"," +
                             "\"GET /api/offsets\",\"PUT /api/offsets\",\"GET /api/memory/info\",\"GET /api/memory?address=&length=&format=hex|bin&encoding=sjis\"," +
                             "\"GET /api/memory/search?start=&length=&hex=|text=&encoding=|int32=|int64=&max=\"," +
-                            "\"GET /api/layout\",\"PUT /api/layout\",\"GET|POST /api/layout/preview?start=&count=\"]}");
+                            "\"GET /api/settings\",\"PUT /api/settings\",\"GET /api/layout\",\"PUT /api/layout\",\"GET|POST /api/layout/preview?start=&count=\"]}");
                         return;
                     case "/api/layout": Write(ctx, 200, Layout.GetJson()); return;
+                    case "/api/settings": Write(ctx, 200, CoreSettings.GetJson()); return;
                     case "/api/layout/preview": Layout.Preview(ctx, null); return;
                     case "/api/status": Write(ctx, 200, ApiState.StatusJson()); return;
                     case "/api/songs": Write(ctx, 200, ApiState.SongsJson()); return;
@@ -115,6 +116,12 @@ namespace Reflux.Api
                 string body;
                 using (var reader = new StreamReader(req.InputStream, Encoding.UTF8)) { body = reader.ReadToEnd(); }
                 var (code, json) = DebugApi.PutOffsets(body);
+                Write(ctx, code, json);
+                return;
+            }
+            else if ((method == "PUT" || method == "POST") && path == "/api/settings")
+            {
+                var (code, json) = CoreSettings.Put(ReadBody(req));
                 Write(ctx, code, json);
                 return;
             }

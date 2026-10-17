@@ -129,6 +129,7 @@ namespace Reflux.Api
         public static void SetReady(bool playStateDetection)
         {
             lock (sync) { status.PlayStateDetection = playStateDetection; }
+            CoreSettings.MarkTrackerChanged(); /* Write tracker.tsv once after attaching, whatever the mode */
             SetGameState(GameState.songSelect); /* The main loop starts from songSelect and only reports changes */
             SetAttachState(AttachState.Ready, playStateDetection ? null : "Play state marker not found, play results are not recorded");
         }
@@ -162,6 +163,7 @@ namespace Reflux.Api
             }
             if (state == GameState.songSelect)
             {
+                CoreSettings.OnSongSelect();
                 ClearRates.Refresh(); /* Server statistics may have been updated while playing */
             }
         }
@@ -218,6 +220,7 @@ namespace Reflux.Api
         /// </summary>
         public static void OnPlayRecorded(PlayData play)
         {
+            CoreSettings.MarkTrackerChanged();
             try
             {
                 var form = play.ToPostForm();
