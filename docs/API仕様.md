@@ -36,6 +36,7 @@
 | `GET /api/scores` | 自己ベストの一覧（全譜面） |
 | `GET /api/latest` | 直前のプレー記録（無ければ `null`） |
 | `GET /api/session` | 今回の Reflux 起動以降のプレー記録（`latest` と同じ形の配列） |
+| `GET /api/clearrates` | 全国のクリアレート（譜面ごと）。下記 |
 | `POST /api/attach/retry` | 再アタッチを要求する（`202`）。オフセット不一致の待機中や、曲リストの読み込みが進まないときにも効く |
 
 ### `GET /api/status`
@@ -54,6 +55,7 @@
 | `gameState` | `songSelect` / `playing` / `resultScreen`（変化するまでは `null`） |
 | `currentChart` | `{songId, title, difficulty}`。選曲中・プレー中の譜面 |
 | `songsRevision` / `scoresRevision` | 曲データ / 自己ベストを読み直すたびに増える。クライアントはこれが変わったときだけ取り直す |
+| `clearRatesRevision` | クリアレートの値が変わったときだけ増える（0 のうちは未取得） |
 | `sessionPlays` | 今回の起動以降に記録したプレー数 |
 | `serverTime` | 応答した時刻（UTC） |
 
@@ -63,6 +65,11 @@
 - charts: `{songId, difficulty, level, notes, bpm}`。`difficulty` は `SPB` `SPN` `SPH` `SPA` `SPL` `DPB` `DPN` `DPH` `DPA` `DPL`
 - scores: `{songId, difficulty, unlocked, lamp, grade, exScore, missCount, pGreat, great, bad, poor}`。
   `lamp` は `NP` `F` `AC` `EC` `NC` `HC` `EX` `FC` `PFC`。`pGreat` 〜 `poor` は Reflux が記録したプレーで自己ベストと一致したときだけ値が入る（ゲームは保存していない）
+
+### `GET /api/clearrates`
+
+- `[{songId, difficulty, rate}]`。`rate` は全プレイヤーのクリアレート（%、小数第2位まで。ゲーム画面は小数第1位に四捨五入して表示）。値の無い譜面は含まない
+- サーバーの集計値をゲームが持っているもの（`layout.json` の `clearRate`）。コアは ready になったときと、選曲画面に戻るたびに読み直す
 
 ## ゲーム更新対応用のエンドポイント（リクエストのたびにメモリを読む／ファイルを書く）
 
@@ -103,12 +110,13 @@
 | `GET /api/layout/preview?struct=…&start=…&count=…` | 使用中の配置で、その構造体をメモリから読んだ結果 |
 | `POST /api/layout/preview?struct=…` | 本文（`PUT` と同じ形式）の配置で試し読みする。**保存しない** |
 
-- `struct` は `song`（既定）、`unlock`、`scoreMap`、`playData`、`judge`、`settings`、`currentSong`、`gameState`
+- `struct` は `song`（既定）、`unlock`、`scoreMap`、`playData`、`judge`、`settings`、`currentSong`、`gameState`、`clearRate`
 - `start` は読み始めるアドレス式。既定は構造体に対応するオフセット（`song` なら `songList`）
 - `count` は先頭から返す件数（`song` / `unlock` / `scoreMap`。既定 5、最大 500）
 - `song` / `unlock` / `scoreMap` は全件を読んで `summary` にチェック結果を返す。`summary.looksValid` が `true` なら配置はたぶん正しい。
   `song` のチェックはメインループも使っていて、合格しないと曲データの読み込みを先へ進めない（`status.message` にチェック結果が出る）
 - `playData` / `judge` / `currentSong` は各項目の今の値、`settings` は P1 側と P2 側の値、`gameState` はプレー中マーカーと選曲画面マーカーの位置と値を返す
+- `clearRate` は SP・DP の木をたどった結果。`songs=12023,25094` でその曲の値だけ返す
 
 `layout.json` の形式と初期値（INFINITAS `P2D:J:B:A:2026101400` 用）。どの構造体も、オフセット（`offsets.txt`）が指す位置からの相対位置:
 
@@ -141,7 +149,11 @@
     "style2": "0x14", "battle": "0x20", "hRan": "0x24", "p2Offset": "0x48"
   },
   "currentSong": { "song": "0x0", "difficulty": "0x4" },
-  "gameState": { "markerSearchStart": "0x90", "markerSearchLength": "0x60", "markerFromMagic": "0x18", "songSelectMarker": "-0x18" }
+  "gameState": { "markerSearchStart": "0x90", "markerSearchLength": "0x60", "markerFromMagic": "0x18", "songSelectMarker": "-0x18" },
+  "clearRate": {
+    "spMap": "0x25D0FA0", "dpMap": "0x25D0FA8", "objectHead": "0x8", "objectSize": "0x10",
+    "nodeSize": "0x30", "left": "0x0", "parent": "0x8", "right": "0x10", "isNil": "0x19", "song": "0x1C", "difficulty": "0x20", "rate": "0x24"
+  }
 }
 ```
 
@@ -153,6 +165,7 @@
 | `playData` | リザルトのプレーデータ。`difficulty` は 0〜9（SPB〜DPL） |
 | `judge` | 判定数。P1 側と P2 側が別々で、Reflux が合算する |
 | `settings` | オプション。P2 側の値は `p2Offset` 先にある |
+| `clearRate` | 全国クリアレート。`spMap` / `dpMap` は **bm2dx のベースアドレスからの位置**で、そこにオブジェクト（仮想関数表 `0x1404E5D70`, head ノード, 件数）へのポインタがある。中身は MSVC の `std::map`（赤黒木）で、head の parent が根。ノードは left / parent / right、`isNil`（head なら 0 以外）、曲ID、譜面 0〜4（B〜L）、クリアレート × 100（無ければ -1） |
 | `gameState` | `judgeData + markerSearchStart` から `markerSearchLength` バイトの中で、10000 を超える値が8バイト間隔で3つ並ぶ所を探し、2つ目から `markerFromMagic` 先をプレー中マーカー（0 以外でプレー中）にする。選曲画面マーカーは `playSettings + songSelectMarker`（1 で選曲画面。プレー後にだけ見る） |
 
 ## ゲーム更新時の手順（例）

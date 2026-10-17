@@ -52,6 +52,8 @@ namespace Reflux.Api
         public int SongsRevision { get; set; }
         /// <summary>Incremented when /api/scores content changes</summary>
         public int ScoresRevision { get; set; }
+        /// <summary>Incremented when /api/clearrates content changes</summary>
+        public int ClearRatesRevision { get; set; }
         public int SessionPlays { get; set; }
         public DateTime ServerTime { get; set; }
 
@@ -74,6 +76,8 @@ namespace Reflux.Api
         static CachedJson latest = new CachedJson(null);
         static readonly List<Dictionary<string, string>> session = new List<Dictionary<string, string>>();
         static CachedJson sessionJson = new CachedJson(new object[0]);
+        static CachedJson clearRates = new CachedJson(new ClearRateDto[0]);
+        static string clearRatesKey = "";
 
         public static readonly JsonSerializerSettings JsonSettings = new JsonSerializerSettings
         {
@@ -155,6 +159,23 @@ namespace Reflux.Api
                 {
                     status.CurrentChart = current;
                 }
+            }
+            if (state == GameState.songSelect)
+            {
+                ClearRates.Refresh(); /* Server statistics may have been updated while playing */
+            }
+        }
+        public static int? ProcessId { get { lock (sync) { return status.ProcessId; } } }
+        /// <summary>Publish clear rates, the revision only changes when a value changed</summary>
+        public static void PublishClearRates(List<ClearRateDto> rates)
+        {
+            var key = string.Join(";", rates.Select(r => $"{r.SongId}{r.Difficulty}{r.Rate}"));
+            lock (sync)
+            {
+                if (key == clearRatesKey) { return; }
+                clearRatesKey = key;
+                clearRates = new CachedJson(rates);
+                status.ClearRatesRevision++;
             }
         }
         /// <summary>Publish song and chart data, call after song db and unlock db are loaded</summary>
@@ -273,6 +294,7 @@ namespace Reflux.Api
         public static string ScoresJson() { lock (sync) { return scores.Json; } }
         public static string LatestJson() { lock (sync) { return latest.Json; } }
         public static string SessionJson() { lock (sync) { return sessionJson.Json; } }
+        public static string ClearRatesJson() { lock (sync) { return clearRates.Json; } }
         #endregion
 
         /// <summary>

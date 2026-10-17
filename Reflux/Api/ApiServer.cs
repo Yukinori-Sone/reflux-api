@@ -85,7 +85,7 @@ namespace Reflux.Api
                 {
                     case "":
                     case "/api":
-                        Write(ctx, 200, "{\"endpoints\":[\"GET /api/status\",\"GET /api/songs\",\"GET /api/charts\",\"GET /api/scores\",\"GET /api/latest\",\"GET /api/session\",\"POST /api/attach/retry\"," +
+                        Write(ctx, 200, "{\"endpoints\":[\"GET /api/status\",\"GET /api/songs\",\"GET /api/charts\",\"GET /api/scores\",\"GET /api/latest\",\"GET /api/session\",\"GET /api/clearrates\",\"POST /api/attach/retry\"," +
                             "\"GET /api/offsets\",\"PUT /api/offsets\",\"GET /api/memory/info\",\"GET /api/memory?address=&length=&format=hex|bin&encoding=sjis\"," +
                             "\"GET /api/memory/search?start=&length=&hex=|text=&encoding=|int32=|int64=&max=\"," +
                             "\"GET /api/layout\",\"PUT /api/layout\",\"GET|POST /api/layout/preview?start=&count=\"]}");
@@ -98,6 +98,7 @@ namespace Reflux.Api
                     case "/api/scores": Write(ctx, 200, ApiState.ScoresJson()); return;
                     case "/api/latest": Write(ctx, 200, ApiState.LatestJson()); return;
                     case "/api/session": Write(ctx, 200, ApiState.SessionJson()); return;
+                    case "/api/clearrates": Write(ctx, 200, ApiState.ClearRatesJson()); return;
                     case "/api/offsets": Write(ctx, 200, DebugApi.GetOffsetsJson()); return;
                     case "/api/memory/info":
                         {

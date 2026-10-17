@@ -157,6 +157,30 @@ namespace Reflux.Api
         public int SongSelectMarker = -0x18;
     }
 
+    /// <summary>
+    /// Clear rates of every player (server statistics, rate × 100, -1 when there is none), SP and DP in separate MSVC std::map trees.
+    /// bm2dx base + spMap / dpMap holds a pointer to an object { vtable, head node*, size }. Tree node offsets are relative to the node.
+    /// Defaults for 2026101400: object vtable 0x1404E5D70 (search the heap for it when the static pointer moves).
+    /// </summary>
+    public class ClearRateLayout
+    {
+        /// <summary>Position of the pointer to the SP object, relative to the bm2dx module base</summary>
+        public int SpMap = 0x25D0FA0;
+        public int DpMap = 0x25D0FA8;
+        public int ObjectHead = 0x8;
+        public int ObjectSize = 0x10;
+        public int NodeSize = 0x30;
+        public int Left = 0x0;
+        public int Parent = 0x8;
+        public int Right = 0x10;
+        /// <summary>1 byte, non zero for the head node</summary>
+        public int IsNil = 0x19;
+        public int Song = 0x1C;
+        /// <summary>0..4 (B N H A L)</summary>
+        public int Difficulty = 0x20;
+        public int Rate = 0x24;
+    }
+
     public class StructLayouts
     {
         public SongLayout Song = new SongLayout();
@@ -167,6 +191,7 @@ namespace Reflux.Api
         public SettingsLayout Settings = new SettingsLayout();
         public CurrentSongLayout CurrentSong = new CurrentSongLayout();
         public GameStateLayout GameState = new GameStateLayout();
+        public ClearRateLayout ClearRate = new ClearRateLayout();
     }
 
     /// <summary>
@@ -219,6 +244,7 @@ namespace Reflux.Api
         public static SettingsLayout Settings => Current.Settings;
         public static CurrentSongLayout CurrentSong => Current.CurrentSong;
         public static GameStateLayout GameState => Current.GameState;
+        public static ClearRateLayout ClearRate => Current.ClearRate;
 
         #region Parsing
         static Encoding GetEncoding(string name)
@@ -421,6 +447,12 @@ namespace Reflux.Api
                 return CheckInside("scoreMap", m.NodeSize, ("next", m.Next, 8), ("prev", m.Prev, 8), ("difficulty", m.Difficulty, 4),
                     ("song", m.Song, 4), ("playType", m.PlayType, 4), ("score", m.Score, 4), ("missCount", m.MissCount, 4), ("lamp", m.Lamp, 4));
             }
+            if (target is ClearRateLayout c)
+            {
+                if (c.NodeSize < 0x10 || c.NodeSize > 0x1000) { return "clearRate.nodeSize must be 0x10..0x1000"; }
+                return CheckInside("clearRate", c.NodeSize, ("left", c.Left, 8), ("parent", c.Parent, 8), ("right", c.Right, 8),
+                    ("isNil", c.IsNil, 1), ("song", c.Song, 4), ("difficulty", c.Difficulty, 4), ("rate", c.Rate, 4));
+            }
             if (target is GameStateLayout g)
             {
                 if (g.MarkerSearchLength < 12 || g.MarkerSearchLength > 0x10000 || g.MarkerSearchLength % 4 != 0) { return "gameState.markerSearchLength must be a multiple of 4 in 12..0x10000"; }
@@ -534,6 +566,7 @@ namespace Reflux.Api
                         "settings" => PreviewSettings(reader, layout.Settings, q["start"] ?? "playSettings"),
                         "currentsong" => PreviewFields(reader, layout.CurrentSong, q["start"] ?? "currentSong"),
                         "gamestate" => PreviewGameState(reader, layout.GameState),
+                        "clearrate" => PreviewClearRate(reader, layout.ClearRate, q["songs"], count),
                         _ => null,
                     };
                 }
@@ -543,7 +576,7 @@ namespace Reflux.Api
                 }
                 if (result == null)
                 {
-                    ApiServer.Write(ctx, 400, Error("unknown_struct", "struct must be song, unlock, scoreMap, playData, judge, settings, currentSong or gameState")); return;
+                    ApiServer.Write(ctx, 400, Error("unknown_struct", "struct must be song, unlock, scoreMap, playData, judge, settings, currentSong, gameState or clearRate")); return;
                 }
                 ApiServer.Write(ctx, 200, JsonConvert.SerializeObject(result, ApiState.JsonSettings));
                 return;
@@ -739,6 +772,29 @@ namespace Reflux.Api
                     score = n.score, missCount = n.miss, lamp = n.lamp,
                 }),
             };
+        }
+
+        /// <summary>Both clear rate trees; songs=12023,25094 lists those songs, otherwise the first count rates of each side</summary>
+        static object PreviewClearRate(DebugApi.MemoryReader r, ClearRateLayout l, string songs, int count)
+        {
+            var moduleBase = Resolve(r, "base");
+            var watch = (songs ?? "").Split(',', StringSplitOptions.RemoveEmptyEntries).Select(x => x.Trim().PadLeft(5, '0')).ToHashSet();
+            object Side(string side, int pointerOffset)
+            {
+                var nodes = ClearRates.Walk(r.Read, moduleBase + pointerOffset, l, out var error);
+                if (nodes == null) { return new { pointer = $"0x{moduleBase + pointerOffset:X}", looksValid = false, error }; }
+                var dtos = ClearRates.ToDtos(nodes, side).OrderBy(d => d.SongId).ThenBy(d => d.Difficulty).ToList();
+                return new
+                {
+                    pointer = $"0x{moduleBase + pointerOffset:X}",
+                    looksValid = nodes.Count > 100,
+                    nodes = nodes.Count,
+                    songs = nodes.Select(n => n.song).Distinct().Count(),
+                    withRate = dtos.Count,
+                    rates = watch.Count > 0 ? dtos.Where(d => watch.Contains(d.SongId)).ToList() : dtos.Take(count).ToList(),
+                };
+            }
+            return new { layout = ToJson(l), sp = Side("SP", l.SpMap), dp = Side("DP", l.DpMap) };
         }
 
         static object PreviewGameState(DebugApi.MemoryReader r, GameStateLayout l)
