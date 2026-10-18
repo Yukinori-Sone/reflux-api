@@ -181,6 +181,19 @@ namespace Reflux.Api
         public int Rate = 0x24;
     }
 
+    /// <summary>
+    /// Rival scores (GetRivalInfo response). bm2dx base + spData / dpData holds a pointer to a vector { begin, end } of the
+    /// decoded response; the rival data inside is parsed by its own big endian format (see Rivals.cs). Defaults for 2026101400.
+    /// </summary>
+    public class RivalLayout
+    {
+        /// <summary>Position of the pointer to the SP vector, relative to the bm2dx module base</summary>
+        public int SpData = 0x25D0FC0;
+        public int DpData = 0x25D0FC8;
+        public int Begin = 0x0;
+        public int End = 0x8;
+    }
+
     public class StructLayouts
     {
         public SongLayout Song = new SongLayout();
@@ -192,6 +205,7 @@ namespace Reflux.Api
         public CurrentSongLayout CurrentSong = new CurrentSongLayout();
         public GameStateLayout GameState = new GameStateLayout();
         public ClearRateLayout ClearRate = new ClearRateLayout();
+        public RivalLayout Rival = new RivalLayout();
     }
 
     /// <summary>
@@ -245,6 +259,7 @@ namespace Reflux.Api
         public static CurrentSongLayout CurrentSong => Current.CurrentSong;
         public static GameStateLayout GameState => Current.GameState;
         public static ClearRateLayout ClearRate => Current.ClearRate;
+        public static RivalLayout Rival => Current.Rival;
 
         #region Parsing
         static Encoding GetEncoding(string name)
@@ -567,6 +582,7 @@ namespace Reflux.Api
                         "currentsong" => PreviewFields(reader, layout.CurrentSong, q["start"] ?? "currentSong"),
                         "gamestate" => PreviewGameState(reader, layout.GameState),
                         "clearrate" => PreviewClearRate(reader, layout.ClearRate, q["songs"], count),
+                        "rival" => PreviewRival(reader, layout.Rival, q["songs"]),
                         _ => null,
                     };
                 }
@@ -576,7 +592,7 @@ namespace Reflux.Api
                 }
                 if (result == null)
                 {
-                    ApiServer.Write(ctx, 400, Error("unknown_struct", "struct must be song, unlock, scoreMap, playData, judge, settings, currentSong, gameState or clearRate")); return;
+                    ApiServer.Write(ctx, 400, Error("unknown_struct", "struct must be song, unlock, scoreMap, playData, judge, settings, currentSong, gameState, clearRate or rival")); return;
                 }
                 ApiServer.Write(ctx, 200, JsonConvert.SerializeObject(result, ApiState.JsonSettings));
                 return;
@@ -795,6 +811,29 @@ namespace Reflux.Api
                 };
             }
             return new { layout = ToJson(l), sp = Side("SP", l.SpMap), dp = Side("DP", l.DpMap) };
+        }
+
+        /// <summary>Both rival sides; songs=25094 also lists the rival scores of those songs</summary>
+        static object PreviewRival(DebugApi.MemoryReader r, RivalLayout l, string songs)
+        {
+            var moduleBase = Resolve(r, "base");
+            var watch = (songs ?? "").Split(',', StringSplitOptions.RemoveEmptyEntries).Select(x => x.Trim().PadLeft(5, '0')).ToHashSet();
+            object Side(string side, int pointerOffset)
+            {
+                var buf = Rivals.ReadBuffer(r.Read, moduleBase + pointerOffset, l, out var error);
+                if (buf == null) { return new { pointer = $"0x{moduleBase + pointerOffset:X}", looksValid = false, error }; }
+                var (rivals, scores) = Rivals.Parse(buf, side, out error);
+                if (rivals == null) { return new { pointer = $"0x{moduleBase + pointerOffset:X}", bufferSize = buf.Length, looksValid = false, error }; }
+                return new
+                {
+                    pointer = $"0x{moduleBase + pointerOffset:X}",
+                    bufferSize = buf.Length,
+                    looksValid = rivals.All(x => x.Charts > 0),
+                    rivals,
+                    scores = scores.Where(s => watch.Contains(s.SongId)).ToList(),
+                };
+            }
+            return new { layout = ToJson(l), sp = Side("SP", l.SpData), dp = Side("DP", l.DpData) };
         }
 
         static object PreviewGameState(DebugApi.MemoryReader r, GameStateLayout l)

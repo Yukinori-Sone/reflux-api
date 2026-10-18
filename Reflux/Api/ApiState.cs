@@ -54,6 +54,8 @@ namespace Reflux.Api
         public int ScoresRevision { get; set; }
         /// <summary>Incremented when /api/clearrates content changes</summary>
         public int ClearRatesRevision { get; set; }
+        /// <summary>Incremented when /api/rivals and /api/rivals/scores content changes</summary>
+        public int RivalsRevision { get; set; }
         public int SessionPlays { get; set; }
         public DateTime ServerTime { get; set; }
 
@@ -78,6 +80,10 @@ namespace Reflux.Api
         static CachedJson sessionJson = new CachedJson(new object[0]);
         static CachedJson clearRates = new CachedJson(new ClearRateDto[0]);
         static string clearRatesKey = "";
+        static CachedJson rivals = new CachedJson(new RivalDto[0]);
+        static CachedJson rivalScores = new CachedJson(new RivalScoreDto[0]);
+        static string rivalsKey = "";
+        static bool rivalsLoaded;
 
         public static readonly JsonSerializerSettings JsonSettings = new JsonSerializerSettings
         {
@@ -130,6 +136,7 @@ namespace Reflux.Api
         {
             lock (sync) { status.PlayStateDetection = playStateDetection; }
             CoreSettings.MarkTrackerChanged(); /* Write tracker.tsv once after attaching, whatever the mode */
+            lock (sync) { rivalsLoaded = false; } /* Read rivals again after (re)attaching */
             SetGameState(GameState.songSelect); /* The main loop starts from songSelect and only reports changes */
             SetAttachState(AttachState.Ready, playStateDetection ? null : "Play state marker not found, play results are not recorded");
         }
@@ -165,9 +172,26 @@ namespace Reflux.Api
             {
                 CoreSettings.OnSongSelect();
                 ClearRates.Refresh(); /* Server statistics may have been updated while playing */
+                bool loaded;
+                lock (sync) { loaded = rivalsLoaded; }
+                if (!loaded) { Rivals.Refresh(); } /* The game fetches rivals only at startup, retry until both sides were read */
             }
         }
         public static int? ProcessId { get { lock (sync) { return status.ProcessId; } } }
+        /// <summary>Publish rivals and their scores, the revision only changes when something changed</summary>
+        public static void PublishRivals(List<RivalDto> list, List<RivalScoreDto> scores, bool complete)
+        {
+            var key = string.Join(";", list.Select(r => $"{r.Side}{r.Index}{r.InfinitasId}{r.Charts}")) + "|" + scores.Sum(s => (long)s.ExScore);
+            lock (sync)
+            {
+                rivalsLoaded = complete;
+                if (key == rivalsKey) { return; }
+                rivalsKey = key;
+                rivals = new CachedJson(list);
+                rivalScores = new CachedJson(scores);
+                status.RivalsRevision++;
+            }
+        }
         /// <summary>Publish clear rates, the revision only changes when a value changed</summary>
         public static void PublishClearRates(List<ClearRateDto> rates)
         {
@@ -298,6 +322,8 @@ namespace Reflux.Api
         public static string LatestJson() { lock (sync) { return latest.Json; } }
         public static string SessionJson() { lock (sync) { return sessionJson.Json; } }
         public static string ClearRatesJson() { lock (sync) { return clearRates.Json; } }
+        public static string RivalsJson() { lock (sync) { return rivals.Json; } }
+        public static string RivalScoresJson() { lock (sync) { return rivalScores.Json; } }
         #endregion
 
         /// <summary>
