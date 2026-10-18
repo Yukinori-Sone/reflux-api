@@ -34,7 +34,8 @@ namespace Reflux.Api
         /// <summary>Romanized / English title</summary>
         public StringField Title2 = new StringField(0x100, 0x40, "sjis");
         public StringField Genre = new StringField(0x140, 0x80, "utf16");
-        public StringField Artist = new StringField(0x1C0, 0x80, "utf16");
+        /// <summary>Up to 128 characters, runs until the unused bytes before the folder number</summary>
+        public StringField Artist = new StringField(0x1C0, 0x100, "utf16");
         /// <summary>Version folder number, 1 byte</summary>
         public int Folder = 0x2D8;
         /// <summary>Levels, 10 bytes: SPB SPN SPH SPA SPL DPB DPN DPH DPA DPL</summary>
