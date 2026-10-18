@@ -38,6 +38,8 @@
 | `GET /api/latest` | 直前のプレー記録（無ければ `null`） |
 | `GET /api/session` | 今回の Reflux 起動以降のプレー記録（`latest` と同じ形の配列） |
 | `GET /api/clearrates` | 全国のクリアレート（譜面ごと）。下記 |
+| `GET /api/rivals` | ゲームに登録したライバル（SP・DP 別に最大5人）。下記 |
+| `GET /api/rivals/scores` | ライバル全員の譜面ごとの EX スコア・ランプ。下記 |
 | `GET /api/settings` | コアの動作設定（下記）の今の値・初期値・選択肢 |
 | `PUT /api/settings` | 動作設定を変える。本文に書いた項目だけ変わり、その場で反映して `coresettings.json` に保存する |
 | `POST /api/attach/retry` | 再アタッチを要求する（`202`）。オフセット不一致の待機中や、曲リストの読み込みが進まないときにも効く |
@@ -59,6 +61,7 @@
 | `currentChart` | `{songId, title, difficulty}`。選曲中・プレー中の譜面 |
 | `songsRevision` / `scoresRevision` | 曲データ / 自己ベストを読み直すたびに増える。クライアントはこれが変わったときだけ取り直す |
 | `clearRatesRevision` | クリアレートの値が変わったときだけ増える（0 のうちは未取得） |
+| `rivalsRevision` | ライバルの一覧・スコアが変わったときだけ増える（0 のうちは未取得） |
 | `sessionPlays` | 今回の起動以降に記録したプレー数 |
 | `serverTime` | 応答した時刻（UTC） |
 
@@ -73,6 +76,12 @@
 
 - `[{songId, difficulty, rate}]`。`rate` は全プレイヤーのクリアレート（%、小数第2位まで。ゲーム画面は小数第1位に四捨五入して表示）。値の無い譜面は含まない
 - サーバーの集計値をゲームが持っているもの（`layout.json` の `clearRate`）。コアは ready になったときと、選曲画面に戻るたびに読み直す
+
+### `GET /api/rivals` / `GET /api/rivals/scores`
+
+- rivals: `[{side, index, infinitasId, djName, prefId, gradeSp, gradeDp, charts}]`。`side` は `SP` / `DP`（ゲームでは SP と DP のライバルを別々に5人ずつ登録する。同じ人のこともある）、`index` は登録順（0〜）。`prefId`（都道府県、[INFINITAS動作.md](INFINITAS動作.md) の表）と `gradeSp` / `gradeDp`（段位、-1 = なし）は推定。`charts` はスコアのある譜面数
+- scores: `[{side, index, songId, difficulty, exScore, lamp}]`。プレーしていない譜面は含まない。`lamp` は `NP` 〜 `FC`（ゲームは PERFECT を保存しないので `PFC` は無い）。ミスカウントや判定の内訳は無い
+- ゲームは起動時にだけライバルを取得するので、コアは ready になったときに読む（両方読めるまで、選曲画面に戻るたびに読み直す）。ライバルを変えたら INFINITAS の再起動が必要
 
 ### コアの動作設定（`/api/settings`、`coresettings.json`）
 
@@ -128,13 +137,14 @@ curl -X PUT "$A/settings" -d '{"unlockCheckSeconds":-1,"trackerTsv":"onChange","
 | `GET /api/layout/preview?struct=…&start=…&count=…` | 使用中の配置で、その構造体をメモリから読んだ結果 |
 | `POST /api/layout/preview?struct=…` | 本文（`PUT` と同じ形式）の配置で試し読みする。**保存しない** |
 
-- `struct` は `song`（既定）、`unlock`、`scoreMap`、`playData`、`judge`、`settings`、`currentSong`、`gameState`、`clearRate`
+- `struct` は `song`（既定）、`unlock`、`scoreMap`、`playData`、`judge`、`settings`、`currentSong`、`gameState`、`clearRate`、`rival`
 - `start` は読み始めるアドレス式。既定は構造体に対応するオフセット（`song` なら `songList`）
 - `count` は先頭から返す件数（`song` / `unlock` / `scoreMap`。既定 5、最大 500）
 - `song` / `unlock` / `scoreMap` は全件を読んで `summary` にチェック結果を返す。`summary.looksValid` が `true` なら配置はたぶん正しい。
   `song` のチェックはメインループも使っていて、合格しないと曲データの読み込みを先へ進めない（`status.message` にチェック結果が出る）
 - `playData` / `judge` / `currentSong` は各項目の今の値、`settings` は P1 側と P2 側の値、`gameState` はプレー中マーカーと選曲画面マーカーの位置と値を返す
 - `clearRate` は SP・DP の木をたどった結果。`songs=12023,25094` でその曲の値だけ返す
+- `rival` は SP・DP のライバル一覧（`songs=25094` でその曲のライバルのスコアも）
 
 `layout.json` の形式と初期値（INFINITAS `P2D:J:B:A:2026101400` 用）。どの構造体も、オフセット（`offsets.txt`）が指す位置からの相対位置:
 
@@ -171,7 +181,8 @@ curl -X PUT "$A/settings" -d '{"unlockCheckSeconds":-1,"trackerTsv":"onChange","
   "clearRate": {
     "spMap": "0x25D0FA0", "dpMap": "0x25D0FA8", "objectHead": "0x8", "objectSize": "0x10",
     "nodeSize": "0x30", "left": "0x0", "parent": "0x8", "right": "0x10", "isNil": "0x19", "song": "0x1C", "difficulty": "0x20", "rate": "0x24"
-  }
+  },
+  "rival": { "spData": "0x25D0FC0", "dpData": "0x25D0FC8", "begin": "0x0", "end": "0x8" }
 }
 ```
 
@@ -184,6 +195,7 @@ curl -X PUT "$A/settings" -d '{"unlockCheckSeconds":-1,"trackerTsv":"onChange","
 | `judge` | 判定数。P1 側と P2 側が別々で、Reflux が合算する |
 | `settings` | オプション。P2 側の値は `p2Offset` 先にある |
 | `clearRate` | 全国クリアレート。`spMap` / `dpMap` は **bm2dx のベースアドレスからの位置**で、そこにオブジェクト（仮想関数表 `0x1404E5D70`, head ノード, 件数）へのポインタがある。中身は MSVC の `std::map`（赤黒木）で、head の parent が根。ノードは left / parent / right、`isNil`（head なら 0 以外）、曲ID、譜面 0〜4（B〜L）、クリアレート × 100（無ければ -1） |
+| `rival` | ライバル。`spData` / `dpData` は **bm2dx のベースアドレスからの位置**で、そこに `GetRivalInfo` の応答（展開した KBin）を入れたバッファ `{begin, end}` へのポインタがある。バッファの中から `[長さ][人数]` に続く ID（`C` + 12桁）を探し、そこからビッグエンディアンで読む（`Api/Rivals.cs` の説明を参照）。1人分は ID・DJ NAME・店舗名（長さ付き文字列）、県・SP段位・DP段位、曲ごとに 52 バイト（曲ID、`00000014`、EX ×5、`00000014`、ランプ ×5） |
 | `gameState` | `judgeData + markerSearchStart` から `markerSearchLength` バイトの中で、10000 を超える値が8バイト間隔で3つ並ぶ所を探し、2つ目から `markerFromMagic` 先をプレー中マーカー（0 以外でプレー中）にする。選曲画面マーカーは `playSettings + songSelectMarker`（1 で選曲画面。プレー後にだけ見る） |
 
 ## ゲーム更新時の手順（例）
