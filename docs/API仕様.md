@@ -155,7 +155,7 @@ curl -X PUT "$A/settings" -d '{"unlockCheckSeconds":-1,"trackerTsv":"onChange","
     "title":  { "offset": "0x0",   "length": "0x100", "encoding": "utf16" },
     "title2": { "offset": "0x100", "length": "0x40",  "encoding": "sjis" },
     "genre":  { "offset": "0x140", "length": "0x80",  "encoding": "utf16" },
-    "artist": { "offset": "0x1C0", "length": "0x80",  "encoding": "utf16" },
+    "artist": { "offset": "0x1C0", "length": "0x100", "encoding": "utf16" },
     "folder": "0x2D8", "levels": "0x2E0", "bpm": "0x2F0", "notes": "0x370", "id": "0x5B0"
   },
   "unlock": { "entrySize": "0x20", "id": "0x0", "type": "0x4", "unlocks": "0x8" },
