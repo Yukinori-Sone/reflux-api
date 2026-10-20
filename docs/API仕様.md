@@ -164,7 +164,7 @@ curl -X PUT "$A/settings" -d '{"unlockCheckSeconds":-1,"trackerTsv":"onChange","
     "nodeSize": "0x40", "next": "0x0", "prev": "0x8", "difficulty": "0x10", "song": "0x14",
     "playType": "0x18", "score": "0x20", "missCount": "0x24", "lamp": "0x30"
   },
-  "playData": { "song": "0x0", "difficulty": "0x4", "lamp": "0x18" },
+  "playData": { "song": "0x0", "difficulty": "0x4", "exScore": "0x8", "lamp": "0x18" },
   "judge": {
     "p1Pgreat": "0x0", "p1Great": "0x4", "p1Good": "0x8", "p1Bad": "0xC", "p1Poor": "0x10",
     "p2Pgreat": "0x14", "p2Great": "0x18", "p2Good": "0x1C", "p2Bad": "0x20", "p2Poor": "0x24",
