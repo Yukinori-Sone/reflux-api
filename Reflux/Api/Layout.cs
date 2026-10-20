@@ -93,6 +93,8 @@ namespace Reflux.Api
         public int Song = 0x0;
         /// <summary>Difficulty 0..9 (SPB ... DPL)</summary>
         public int Difficulty = 0x4;
+        /// <summary>EX score of the play, used to tell this play's data from the previous one</summary>
+        public int ExScore = 0x8;
         public int Lamp = 0x18;
     }
 

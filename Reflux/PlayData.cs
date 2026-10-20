@@ -74,6 +74,20 @@ namespace Reflux
             var l = Api.Layout.PlayData; /* Field positions from layout.json or built-in defaults */
             var lj = Api.Layout.Judge;
 
+            /* The game can write the play data later than the judge data. On the first play after INFINITAS starts it was still
+             * empty when read, and on later plays the previous play's values would be read instead. Wait until it matches the chart
+             * being played (currentSong) and the EX score from the judge data, at most about 3 seconds, before reading it */
+            var playing = Utils.FetchCurrentChart();
+            int judgedExScore = judges.pgreat * 2 + judges.great;
+            for (int attempt = 0; attempt < 10; attempt++)
+            {
+                var playedSong = Utils.ReadInt32(Offsets.PlayData, l.Song).ToString("00000");
+                var playedDifficulty = (Difficulty)Utils.ReadInt32(Offsets.PlayData, l.Difficulty);
+                var playedExScore = Utils.ReadInt32(Offsets.PlayData, l.ExScore);
+                if (playedSong == playing.songID && playedDifficulty == playing.difficulty && playedExScore == judgedExScore) { break; }
+                System.Threading.Thread.Sleep(300);
+            }
+
             Difficulty difficulty;
             try
             {
@@ -88,8 +102,9 @@ namespace Reflux
                 chart = FetchChartInfo(Utils.songDb[songID], difficulty);
                 DataAvailable = true;
             }
-            catch
+            catch (Exception e)
             {
+                Utils.Except(e, "PlayDataFetch"); /* Record why, the fallback below is not saved anywhere */
                 Console.WriteLine("Unable to fetch play data, using currentplaying value instead");
                 var currentChart = Utils.FetchCurrentChart();
                 songID = currentChart.songID;
