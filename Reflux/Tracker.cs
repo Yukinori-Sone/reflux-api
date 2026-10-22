@@ -225,7 +225,10 @@ namespace Reflux
                         var entry = trackerDb[c];
                         /* Only overwrite lamp and grade, as those are the only with potential custom values */
                         entry.lamp = (Lamp)Math.Max((int)ScoreMap.Scores[song.Key].lamp[i], (int)entry.lamp);
-                        entry.grade = (Grade)Math.Max((int)Utils.ScoreToGrade(song.Key, (Difficulty)i, ScoreMap.Scores[song.Key].score[i]), (int)entry.grade);
+                        /* Unplayed charts (NO PLAY with no score in the game) stay NP, as when tracker.db is created. Score 0 would
+                         * otherwise give F, and taking the maximum kept that F in tracker.db from then on */
+                        bool unplayed = ScoreMap.Scores[song.Key].lamp[i] == Lamp.NP && ScoreMap.Scores[song.Key].score[i] == 0;
+                        entry.grade = unplayed ? Grade.NP : (Grade)Math.Max((int)Utils.ScoreToGrade(song.Key, (Difficulty)i, ScoreMap.Scores[song.Key].score[i]), (int)entry.grade);
                         entry.misscount = ScoreMap.Scores[song.Key].misscount[i];
                         entry.ex_score = ScoreMap.Scores[song.Key].score[i];
                         entry.DJPoints = ScoreMap.Scores[song.Key].DJPoints[i];
