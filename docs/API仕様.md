@@ -69,7 +69,7 @@
 
 - songs: `{id, title, title2, artist, genre, folder, unlockType, label}`。`id` は5桁ゼロ埋め、`folder` はバージョンフォルダ番号（0 = 1st style、1 = substream、80 = INFINITAS）
 - charts: `{songId, difficulty, level, notes, bpm}`。`difficulty` は `SPB` `SPN` `SPH` `SPA` `SPL` `DPB` `DPN` `DPH` `DPA` `DPL`
-- scores: `{songId, difficulty, unlocked, lamp, grade, exScore, missCount, pGreat, great, bad, poor}`。
+- scores: `{songId, difficulty, unlocked, lamp, grade, exScore, missCount, pGreat, great, bad, poor, clearCount, playCount}`。`clearCount` / `playCount` はゲームが持っているクリア回数・プレー回数（自己ベストのハッシュマップの +0x28 / +0x2C。選曲画面に戻るたびに読み直し、変わっていれば `scoresRevision` が増える）。
   `lamp` は `NP` `F` `AC` `EC` `NC` `HC` `EX` `FC` `PFC`。`pGreat` 〜 `poor` は Reflux が記録したプレーで自己ベストと一致したときだけ値が入る（ゲームは保存していない）
 
 ### `GET /api/clearrates`
@@ -162,7 +162,7 @@ curl -X PUT "$A/settings" -d '{"unlockCheckSeconds":-1,"trackerTsv":"onChange","
   "scoreMap": {
     "nullNode": "-0x10", "bucketsStart": "0x0", "bucketsEnd": "0x8",
     "nodeSize": "0x40", "next": "0x0", "prev": "0x8", "difficulty": "0x10", "song": "0x14",
-    "playType": "0x18", "score": "0x20", "missCount": "0x24", "lamp": "0x30"
+    "playType": "0x18", "score": "0x20", "missCount": "0x24", "clearCount": "0x28", "playCount": "0x2C", "lamp": "0x30"
   },
   "playData": { "song": "0x0", "difficulty": "0x4", "exScore": "0x8", "lamp": "0x18" },
   "judge": {

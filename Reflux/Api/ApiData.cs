@@ -52,6 +52,9 @@ namespace Reflux.Api
         /// <summary>Judge breakdown of the best miss count, only known if the play was recorded by Reflux</summary>
         public int? Bad { get; set; }
         public int? Poor { get; set; }
+        /// <summary>Clear / play counts kept by the game, null until read (Api/PlayCounts.cs)</summary>
+        public int? ClearCount { get; set; }
+        public int? PlayCount { get; set; }
     }
 
     /// <summary>
@@ -116,6 +119,11 @@ namespace Reflux.Api
                     ExScore = info.ex_score,
                     MissCount = miss,
                 };
+                if (PlayCounts.Get(chart.songID, chart.difficulty.ToString()) is (int clear, int play))
+                {
+                    dto.ClearCount = clear;
+                    dto.PlayCount = play;
+                }
                 if (detail != null && detail.ExScore == info.ex_score && played)
                 {
                     dto.PGreat = detail.PGreat;

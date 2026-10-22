@@ -84,6 +84,10 @@ namespace Reflux.Api
         public int PlayType = 0x18;
         public int Score = 0x20;
         public int MissCount = 0x24;
+        /// <summary>Clear count of the chart (confirmed 2026-10-15)</summary>
+        public int ClearCount = 0x28;
+        /// <summary>Play count of the chart (confirmed 2026-10-15)</summary>
+        public int PlayCount = 0x2C;
         public int Lamp = 0x30;
     }
 
@@ -463,7 +467,7 @@ namespace Reflux.Api
             {
                 if (m.NodeSize < 0x10 || m.NodeSize > 0x1000) { return "scoreMap.nodeSize must be 0x10..0x1000"; }
                 return CheckInside("scoreMap", m.NodeSize, ("next", m.Next, 8), ("prev", m.Prev, 8), ("difficulty", m.Difficulty, 4),
-                    ("song", m.Song, 4), ("playType", m.PlayType, 4), ("score", m.Score, 4), ("missCount", m.MissCount, 4), ("lamp", m.Lamp, 4));
+                    ("song", m.Song, 4), ("playType", m.PlayType, 4), ("score", m.Score, 4), ("missCount", m.MissCount, 4), ("clearCount", m.ClearCount, 4), ("playCount", m.PlayCount, 4), ("lamp", m.Lamp, 4));
             }
             if (target is ClearRateLayout c)
             {

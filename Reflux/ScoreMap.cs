@@ -77,8 +77,8 @@ namespace Reflux
                     uk2 = Utils.BytesToInt32(buffer, 28, 4),
                     score = Utils.BytesToInt32(buffer, l.Score, 4),
                     misscount = (uint)Utils.BytesToInt32(buffer, l.MissCount, 4),
-                    uk3 = Utils.BytesToInt32(buffer, 40, 4),
-                    uk4 = Utils.BytesToInt32(buffer, 44, 4),
+                    uk3 = Utils.BytesToInt32(buffer, l.ClearCount, 4), /* clear count */
+                    uk4 = Utils.BytesToInt32(buffer, l.PlayCount, 4), /* play count */
                     lamp = Utils.BytesToInt32(buffer, l.Lamp, 4)
                 };
                 FollowLinkedList(entry);
@@ -143,8 +143,8 @@ namespace Reflux
                     uk2 = Utils.BytesToInt32(buffer, 28, 4),
                     score = Utils.BytesToInt32(buffer, l.Score, 4),
                     misscount = (uint)Utils.BytesToInt32(buffer, l.MissCount, 4),
-                    uk3 = Utils.BytesToInt32(buffer, 40, 4),
-                    uk4 = Utils.BytesToInt32(buffer, 44, 4),
+                    uk3 = Utils.BytesToInt32(buffer, l.ClearCount, 4), /* clear count */
+                    uk4 = Utils.BytesToInt32(buffer, l.PlayCount, 4), /* play count */
                     lamp = Utils.BytesToInt32(buffer, l.Lamp, 4)
                 };
             }

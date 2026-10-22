@@ -171,6 +171,7 @@ namespace Reflux.Api
             if (state == GameState.songSelect)
             {
                 CoreSettings.OnSongSelect();
+                if (PlayCounts.Refresh()) { PublishScores(); } /* The game updates clear / play counts after every play */
                 ClearRates.Refresh(); /* Server statistics may have been updated while playing */
                 bool loaded;
                 lock (sync) { loaded = rivalsLoaded; }
