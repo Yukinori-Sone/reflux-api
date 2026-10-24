@@ -26,6 +26,7 @@ namespace Reflux
 
         static void Main()
         {
+            Api.StartupDirectory.Apply(); /* Data files are relative to the current directory: use the exe's folder */
             Utils.CheckVersion();
             Config.Parse("config.ini");
             BestDetail.Load();

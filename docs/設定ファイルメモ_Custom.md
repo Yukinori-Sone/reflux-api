@@ -59,6 +59,8 @@ New-NetFirewallRule -DisplayName "Reflux API" -Direction Inbound -Protocol TCP -
 
 ## 生成・更新ファイル一覧（差分）
 
+| 【変更】動作 | 作業フォルダ | 起動時に作業フォルダを Reflux.exe のあるフォルダに切り替える。本家は起動したときの作業フォルダ（ショートカットの「作業フォルダー」、bat のカレント）にすべてのファイルを読み書きする |
+
 タイミングの用語（起動時・アタッチ時・リザルト時 など）は Original と同じ意味。
 
 ### 【追加】記録データ
