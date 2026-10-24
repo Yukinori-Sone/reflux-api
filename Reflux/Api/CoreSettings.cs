@@ -17,6 +17,7 @@ namespace Reflux.Api
         public static readonly int[] PollIntervals = { 500, 1000, 2000, 3000, 5000 };
         public static readonly string[] TrackerTsvModes = { "always", "onChange", "never" };
         public static readonly string[] Priorities = { "normal", "belowNormal", "idle" };
+        public static readonly string[] SessionFileModes = { "perStart", "daily", "monthly", "single" };
 
         class Values
         {
@@ -28,6 +29,8 @@ namespace Reflux.Api
             public string TrackerTsv = "always";
             /// <summary>Process priority of Reflux itself</summary>
             public string ProcessPriority = "normal";
+            /// <summary>Session TSV unit: perStart (one file per Reflux start, upstream), daily, monthly or single</summary>
+            public string SessionFile = "perStart";
         }
 
         static readonly object sync = new object();
@@ -79,8 +82,13 @@ namespace Reflux.Api
                         if (pr == null) { return $"processPriority must be one of {string.Join(", ", Priorities)}"; }
                         v.ProcessPriority = pr;
                         break;
+                    case "sessionfile":
+                        var sf = SessionFileModes.FirstOrDefault(m => string.Equals(m, (string)p.Value, StringComparison.OrdinalIgnoreCase));
+                        if (sf == null) { return $"sessionFile must be one of {string.Join(", ", SessionFileModes)}"; }
+                        v.SessionFile = sf;
+                        break;
                     default:
-                        return $"unknown setting {p.Name} (known: pollIntervalMs, unlockCheckSeconds, trackerTsv, processPriority)";
+                        return $"unknown setting {p.Name} (known: pollIntervalMs, unlockCheckSeconds, trackerTsv, processPriority, sessionFile)";
                 }
             }
             return null;
@@ -159,6 +167,29 @@ namespace Reflux.Api
         }
         #endregion
 
+        /// <summary>
+        /// Session TSV to write to, by the sessionFile setting (perStart = the file Program.cs named at start). The file is
+        /// created with the TSV header when it doesn't exist yet, so this also replaces the attach-time creation.
+        /// </summary>
+        public static FileInfo SessionFile(FileInfo perStart)
+        {
+            string mode;
+            lock (sync) { mode = values.SessionFile; }
+            var now = Config.UseLocaltime ? DateTime.Now : DateTime.UtcNow;
+            var file = mode switch
+            {
+                "daily" => new FileInfo(Path.Combine(perStart.DirectoryName, $"Session_{now:yyyy_MM_dd}.tsv")),
+                "monthly" => new FileInfo(Path.Combine(perStart.DirectoryName, $"Session_{now:yyyy_MM}.tsv")),
+                "single" => new FileInfo(Path.Combine(perStart.DirectoryName, "Session_all.tsv")),
+                _ => perStart,
+            };
+            if (!File.Exists(file.FullName))
+            {
+                File.AppendAllLines(file.FullName, new[] { Config.GetTsvHeader() });
+            }
+            return file;
+        }
+
         #region Endpoints
         static JObject ToJson(Values v) => JObject.FromObject(v, JsonSerializer.Create(ApiState.JsonSettings));
 
@@ -178,6 +209,7 @@ namespace Reflux.Api
                         unlockCheckSeconds = "-1 = only when returning to song select, 0 = every poll, 1..3600 = at most every N seconds",
                         trackerTsv = TrackerTsvModes,
                         processPriority = Priorities,
+                        sessionFile = SessionFileModes,
                     },
                 }, ApiState.JsonSettings);
             }

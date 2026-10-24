@@ -43,6 +43,8 @@ namespace Reflux.Api
         public int? ProcessId { get; set; }
         public string GameVersion { get; set; }
         public string OffsetsVersion { get; set; }
+        /// <summary>INFINITAS ID of the logged-in player ("C" + 12 digits), null until read</summary>
+        public string InfinitasId { get; set; }
         /// <summary>False if play state marker wasn't found, play results can't be recorded then</summary>
         public bool PlayStateDetection { get; set; }
         /// <summary>songSelect / playing / resultScreen, null when not attached</summary>
@@ -114,6 +116,7 @@ namespace Reflux.Api
                 {
                     status.ProcessId = null;
                     status.GameVersion = null;
+                    status.InfinitasId = null;
                     status.GameState = null;
                     status.CurrentChart = null;
                     status.PlayStateDetection = false;
@@ -137,6 +140,9 @@ namespace Reflux.Api
             lock (sync) { status.PlayStateDetection = playStateDetection; }
             CoreSettings.MarkTrackerChanged(); /* Write tracker.tsv once after attaching, whatever the mode */
             lock (sync) { rivalsLoaded = false; } /* Read rivals again after (re)attaching */
+            var infinitasId = Player.ReadInfinitasId(); /* The pass can be switched between INFINITAS starts */
+            lock (sync) { status.InfinitasId = infinitasId; }
+            if (infinitasId != null) { PlayLog.ImportSessionsOnce(infinitasId); }
             SetGameState(GameState.songSelect); /* The main loop starts from songSelect and only reports changes */
             SetAttachState(AttachState.Ready, playStateDetection ? null : "Play state marker not found, play results are not recorded");
         }
@@ -276,6 +282,13 @@ namespace Reflux.Api
                     }
                 }
 
+                if (play.DataAvailable)
+                {
+                    /* Plays read from the current chart fallback (no play data) are not kept, as with the session TSV */
+                    string id;
+                    lock (sync) { id = status.InfinitasId; }
+                    PlayLog.Append(form, id, play.MissCountValid ? (int)play.MissCount : (int?)null);
+                }
                 lock (sync)
                 {
                     session.Add(form);

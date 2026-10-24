@@ -201,6 +201,15 @@ namespace Reflux.Api
         public int End = 0x8;
     }
 
+    /// <summary>
+    /// Logged-in player. bm2dx base + infinitasId is the INFINITAS ID string ("C" + 12 digits) of the current login
+    /// (2026101400: 0x1425D0ED4). A login token follows it: only the 13 ID characters are ever read.
+    /// </summary>
+    public class PlayerLayout
+    {
+        public int InfinitasId = 0x25D0ED4;
+    }
+
     public class StructLayouts
     {
         public SongLayout Song = new SongLayout();
@@ -213,6 +222,7 @@ namespace Reflux.Api
         public GameStateLayout GameState = new GameStateLayout();
         public ClearRateLayout ClearRate = new ClearRateLayout();
         public RivalLayout Rival = new RivalLayout();
+        public PlayerLayout Player = new PlayerLayout();
     }
 
     /// <summary>
@@ -267,6 +277,7 @@ namespace Reflux.Api
         public static GameStateLayout GameState => Current.GameState;
         public static ClearRateLayout ClearRate => Current.ClearRate;
         public static RivalLayout Rival => Current.Rival;
+        public static PlayerLayout Player => Current.Player;
 
         #region Parsing
         static Encoding GetEncoding(string name)

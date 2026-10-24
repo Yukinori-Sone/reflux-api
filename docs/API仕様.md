@@ -38,6 +38,7 @@
 | `GET /api/scores` | 自己ベストの一覧（全譜面） |
 | `GET /api/latest` | 直前のプレー記録（無ければ `null`） |
 | `GET /api/session` | 今回の Reflux 起動以降のプレー記録（`latest` と同じ形の配列） |
+| `GET /api/plays` | これまでの全プレー記録（`plays.jsonl`）。下記 |
 | `GET /api/clearrates` | 全国のクリアレート（譜面ごと）。下記 |
 | `GET /api/rivals` | ゲームに登録したライバル（SP・DP 別に最大5人）。下記 |
 | `GET /api/rivals/scores` | ライバル全員の譜面ごとの EX スコア・ランプ。下記 |
@@ -57,6 +58,7 @@
 | `message` | 状態の補足（不一致のときの案内、曲リストのチェック結果など）。無ければ `null` |
 | `processId` | bm2dx のプロセス ID |
 | `gameVersion` / `offsetsVersion` | ゲームのバージョン / `offsets.txt` のバージョン（`P2D:J:B:A:yyyymmddnn`） |
+| `infinitasId` | ログイン中のプレイヤーの INFINITAS ID（`C` ＋ 12 桁。画面表示の `C-1234-5678-9012` のハイフン無し）。アタッチのたびに読む（e-amusement パスを切り替えると変わる）。読めなければ `null` |
 | `playStateDetection` | プレー中の判定用マーカーが見つかったか |
 | `gameState` | `songSelect` / `playing` / `resultScreen`（変化するまでは `null`） |
 | `currentChart` | `{songId, title, difficulty}`。選曲中・プレー中の譜面 |
@@ -78,6 +80,14 @@
 - `[{songId, difficulty, rate}]`。`rate` は全プレイヤーのクリアレート（%、小数第2位まで。ゲーム画面は小数第1位に四捨五入して表示）。値の無い譜面は含まない
 - サーバーの集計値をゲームが持っているもの（`layout.json` の `clearRate`）。コアは ready になったときと、選曲画面に戻るたびに読み直す
 
+### `GET /api/plays`
+
+- クエリ: `since`（ISO 8601。この時刻より後のプレーだけ）、`limit`（既定 10000、最大 100000）、`infinitasId`（そのプレイヤーだけ）
+- `[{infinitasId, source, timestamp, songid, title, title2, diff, level, notecount, lamp, grade, exscore, misscount, pgreat, great, good, bad, poor, combobreak, fast, slow, gaugepercent, prematureend, playtype, style, style2, gauge, assist, range, ...}]`。古い順。値は `/api/latest` と同じく文字列
+- `source`: `reflux`（コアが記録したプレー）／`sessionTsv`（`plays.jsonl` が無かったときに `sessions/Session_*.tsv` から1回だけ取り込んだもの。曲は曲名で ID に対応づけ、`infinitasId` は取り込んだときのプレイヤー、`misscount` が `-` だったものは `null`）
+- `misscount` はミスカウントが有効なプレーだけ（途中終了などは `null`）。曲情報だけで判定の無い記録（プレーデータが読めなかったとき）は入れない
+- クライアントは `sessionPlays` が変わるたびに、手元の最新の `timestamp` を `since` にして差分を取る
+
 ### `GET /api/rivals` / `GET /api/rivals/scores`
 
 - rivals: `[{side, index, infinitasId, djName, prefId, gradeSp, gradeDp, charts}]`。`side` は `SP` / `DP`（ゲームでは SP と DP のライバルを別々に5人ずつ登録する。同じ人のこともある）、`index` は登録順（0〜）。`prefId`（都道府県、[INFINITAS動作.md](INFINITAS動作.md) の表）と `gradeSp` / `gradeDp`（段位、-1 = なし）は推定。`charts` はスコアのある譜面数
@@ -94,6 +104,7 @@
 | `unlockCheckSeconds` | -1 / 0 / 1〜3600 | 0 | 選曲画面で解禁状態を読み直す頻度。0 = 毎回、-1 = 選曲画面に戻ったときだけ、N = 最短 N 秒ごと（選曲画面に戻ったときは必ず読む） |
 | `trackerTsv` | `always` / `onChange` / `never` | `always` | 選曲画面での `tracker.tsv` の書き出し。`onChange` はプレーの記録後・解禁状態の変化時・アタッチ後だけ書く |
 | `processPriority` | `normal` / `belowNormal` / `idle` | `normal` | Reflux 自身のプロセス優先度 |
+| `sessionFile` | `perStart` / `daily` / `monthly` / `single` | `perStart` | `sessions/` のセッション TSV の分け方。`perStart` = Reflux の起動ごと（本家と同じ `Session_yyyy_MM_dd_HH_mm_ss.tsv`）、`daily` = `Session_yyyy_MM_dd.tsv`、`monthly` = `Session_yyyy_MM.tsv`、`single` = `Session_all.tsv`。セッション JSON は変わらない |
 
 ```sh
 curl -X PUT "$A/settings" -d '{"unlockCheckSeconds":-1,"trackerTsv":"onChange","processPriority":"belowNormal"}'
@@ -183,7 +194,8 @@ curl -X PUT "$A/settings" -d '{"unlockCheckSeconds":-1,"trackerTsv":"onChange","
     "spMap": "0x25D0FA0", "dpMap": "0x25D0FA8", "objectHead": "0x8", "objectSize": "0x10",
     "nodeSize": "0x30", "left": "0x0", "parent": "0x8", "right": "0x10", "isNil": "0x19", "song": "0x1C", "difficulty": "0x20", "rate": "0x24"
   },
-  "rival": { "spData": "0x25D0FC0", "dpData": "0x25D0FC8", "begin": "0x0", "end": "0x8" }
+  "rival": { "spData": "0x25D0FC0", "dpData": "0x25D0FC8", "begin": "0x0", "end": "0x8" },
+  "player": { "infinitasId": "0x25D0ED4" }
 }
 ```
 

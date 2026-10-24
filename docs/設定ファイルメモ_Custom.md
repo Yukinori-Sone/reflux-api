@@ -12,6 +12,8 @@
 |---|---|---|
 | 【追加】設定 | `config.ini` の `[Api]` セクション | 別PCクライアント用の HTTP API。初期値は無効なので、そのままなら本家と同じ動き |
 | 【追加】ファイル | `bestdetail.json` | 自己ベストを出したプレーの判定内訳（PG/GR、BAD/POOR） |
+| 【追加】ファイル | `plays.jsonl` | 全プレー記録（INFINITAS ID 付き）。`[Api]` 有効時だけ。`/api/plays` で返す |
+| 【変更】設定 | セッション TSV の単位 | `coresettings.json` の `sessionFile` で、起動ごと（本家と同じ）／日ごと／月ごと／1ファイルを選べる |
 | 【変更】動作 | `tracker.db` / `log.txt` | INF 再起動（再アタッチ）時の読み込みを修正 |
 | 【追加】別アプリ | Reflux.Client の `client.json` / `reflux-client.db` | 別PC側のクライアント（コアとは別の exe） |
 | 【変更】動作 | セッション TSV/JSON | INF 再起動で記録が消える本家の不具合（Original の ※1）を修正 |
@@ -64,6 +66,7 @@ New-NetFirewallRule -DisplayName "Reflux API" -Direction Inbound -Protocol TCP -
 | ファイル | 内容 | 作成 | 読込 | 更新 | 削除 | 関連設定 |
 |---|---|---|---|---|---|---|
 | `bestdetail.json` | 自己ベストを出したプレーの判定内訳（PG/GR、BAD/POOR）。ゲームは EX スコアとミスカウントの合計しか保存していないため、Reflux が記録したプレー分だけ独自に保存する。**消さないこと** | リザルト時（初回） | 起動時 | リザルト時、EX スコアかミスカウントが自己ベストと一致したとき | ― | 設定に関係なく保存（`[Api]` が無効でも保存される） |
+| `plays.jsonl` | 全プレー記録。1行1プレーの JSON（`/api/latest` と同じ項目＋ `infinitasId`・`source`・`misscount`）。セッション TSV の設定とは関係なく1ファイルに追記し続ける。**消さないこと**（クライアントは差分しか取らない） | 最初のアタッチ時（無ければ。そのとき `sessions/Session_*.tsv` の記録を1回だけ取り込む） | `/api/plays` のたび | リザルト時（プレーデータが読めた記録だけ） | ― | `[Api] enabled = true` のときだけ |
 
 ### 【変更】INF 再起動（再アタッチ）時の動作
 
@@ -89,6 +92,7 @@ New-NetFirewallRule -DisplayName "Reflux API" -Direction Inbound -Protocol TCP -
 | 解禁データの確認 | 選曲画面で2秒ごとに読み直す | 10・30・60秒ごと、選曲画面に戻ったときだけ |
 | `tracker.tsv` | 選曲画面で2秒ごとに書き直す（約 480KB） | 変化があったときだけ（プレー後・解禁時・アタッチ後）、書き出さない |
 | Reflux の優先度 | 通常 | 通常以下、低 |
+| セッション TSV の単位 | Reflux の起動ごとに1ファイル（`Session_yyyy_MM_dd_HH_mm_ss.tsv`） | 日ごと（`Session_yyyy_MM_dd.tsv`）、月ごと（`Session_yyyy_MM.tsv`）、1ファイル（`Session_all.tsv`）。無ければヘッダー付きで作り、あれば追記する。日付は `[Record] uselocaltime` に従う。セッション JSON は起動ごとのまま |
 
 形式は [API仕様.md](API仕様.md) の「コアの動作設定」。`[Api]` が無効でも、ファイルがあれば使われる。
 
@@ -116,5 +120,5 @@ New-NetFirewallRule -DisplayName "Reflux API" -Direction Inbound -Protocol TCP -
 | ファイル | 内容 | 作成 | 読込 | 更新 | 削除 | 関連設定 |
 |---|---|---|---|---|---|---|
 | `client.json` | 接続設定 | 初回の「接続」時 | 起動時 | 「接続」ボタンを押すたび | ― | ― |
-| `reflux-client.db` | SQLite。曲・譜面・スコア・シリーズ名・フォルダ定義。シリーズ名やフォルダの抽出条件はこの DB を直接編集して変えられる | 起動時（無ければ） | 起動時・画面更新時 | コアの revision が変わったとき（曲・譜面 / スコア） | ― | `PollIntervalMs`（確認間隔） |
+| `reflux-client.db` | SQLite。曲・譜面・スコア・シリーズ名・フォルダ定義・クリアレート・ライバル・プレー履歴（`play` 表、INFINITAS ID 付き）・最終取得日時（`sync_info` 表）。プレー履歴はコアから差分だけ取ってためるので、**消すとコアの `plays.jsonl` から取り直しになる**。シリーズ名やフォルダの抽出条件はこの DB を直接編集して変えられる | 起動時（無ければ） | 起動時・画面更新時 | コアの revision が変わったとき（曲・譜面 / スコア） | ― | `PollIntervalMs`（確認間隔） |
 | `reflux-client.db-wal` / `-shm` | SQLite の作業ファイル（WAL モード） | DB と同時 | ― | DB 更新時 | 正常終了時に SQLite が整理 | ― |

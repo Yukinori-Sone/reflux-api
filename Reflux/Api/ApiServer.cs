@@ -85,13 +85,14 @@ namespace Reflux.Api
                 {
                     case "":
                     case "/api":
-                        Write(ctx, 200, "{\"endpoints\":[\"GET /api/status\",\"GET /api/songs\",\"GET /api/charts\",\"GET /api/scores\",\"GET /api/latest\",\"GET /api/session\",\"GET /api/clearrates\",\"GET /api/rivals\",\"GET /api/rivals/scores\",\"POST /api/attach/retry\"," +
+                        Write(ctx, 200, "{\"endpoints\":[\"GET /api/status\",\"GET /api/songs\",\"GET /api/charts\",\"GET /api/scores\",\"GET /api/latest\",\"GET /api/session\",\"GET /api/clearrates\",\"GET /api/rivals\",\"GET /api/rivals/scores\",\"GET /api/plays?since=&limit=&infinitasId=\",\"POST /api/attach/retry\"," +
                             "\"GET /api/offsets\",\"PUT /api/offsets\",\"GET /api/memory/info\",\"GET /api/memory?address=&length=&format=hex|bin&encoding=sjis\"," +
                             "\"GET /api/memory/search?start=&length=&hex=|text=&encoding=|int32=|int64=&max=\"," +
                             "\"GET /api/settings\",\"PUT /api/settings\",\"GET /api/layout\",\"PUT /api/layout\",\"GET|POST /api/layout/preview?start=&count=\"]}");
                         return;
                     case "/api/layout": Write(ctx, 200, Layout.GetJson()); return;
                     case "/api/settings": Write(ctx, 200, CoreSettings.GetJson()); return;
+                    case "/api/plays": Plays(ctx); return;
                     case "/api/layout/preview": Layout.Preview(ctx, null); return;
                     case "/api/status": Write(ctx, 200, ApiState.StatusJson()); return;
                     case "/api/songs": Write(ctx, 200, ApiState.SongsJson()); return;
@@ -150,6 +151,24 @@ namespace Reflux.Api
                 }
             }
             Write(ctx, 404, Error("not_found", $"{method} {path}"));
+        }
+
+        /// <summary>GET /api/plays?since=2026-10-15T00:00:00Z&amp;limit=1000&amp;infinitasId=C... : play history, oldest first</summary>
+        static void Plays(HttpListenerContext ctx)
+        {
+            var q = ctx.Request.QueryString;
+            DateTime? since = null;
+            if (!string.IsNullOrEmpty(q["since"]))
+            {
+                if (!DateTime.TryParse(q["since"], System.Globalization.CultureInfo.InvariantCulture,
+                        System.Globalization.DateTimeStyles.AdjustToUniversal | System.Globalization.DateTimeStyles.AssumeUniversal, out var t))
+                {
+                    Write(ctx, 400, Error("bad_since", "since must be an ISO 8601 date-time")); return;
+                }
+                since = t;
+            }
+            int limit = int.TryParse(q["limit"], out var l) ? Math.Clamp(l, 1, 100000) : 10000;
+            Write(ctx, 200, Newtonsoft.Json.JsonConvert.SerializeObject(PlayLog.Read(since, limit, string.IsNullOrEmpty(q["infinitasId"]) ? null : q["infinitasId"])));
         }
 
         static string ReadBody(HttpListenerRequest req)

@@ -230,10 +230,9 @@ namespace Reflux
                 #region Create session and json file if configured to track those
 
                 /* Only create once per Reflux run, re-attaching after an INFINITAS restart would otherwise wipe earlier plays */
-                if (Config.Save_local && !File.Exists(sessionFile.FullName))
+                if (Config.Save_local)
                 {
-                    File.Create(sessionFile.FullName).Close();
-                    WriteLine(sessionFile, Config.GetTsvHeader());
+                    Api.CoreSettings.SessionFile(sessionFile); /* Creates the file with the header when missing; the unit is a core setting */
                 }
 
                 if (Config.Save_json && !File.Exists(jsonfile.FullName))
@@ -400,7 +399,7 @@ namespace Reflux
                                             Tracker.trackerDb[c] = entry;
                                             Tracker.SaveTracker();
 
-                                            WriteLine(sessionFile, latestData.GetTsvEntry());
+                                            WriteLine(Api.CoreSettings.SessionFile(sessionFile), latestData.GetTsvEntry());
                                         }
                                         catch (Exception e)
                                         {
