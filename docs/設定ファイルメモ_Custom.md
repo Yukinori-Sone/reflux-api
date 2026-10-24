@@ -106,7 +106,7 @@ New-NetFirewallRule -DisplayName "Reflux API" -Direction Inbound -Protocol TCP -
 
 ## 【追加】Reflux.Client（別PC側）
 
-コアとは別の exe（`Reflux.Client/`）。exe と同じフォルダにファイルを作る。
+コアとは別の exe（Reflux INFINITAS Score Manager、`RefluxScoreManager.exe`。ソースは `Reflux.Client/`）。exe と同じフォルダにファイルを作る。そのフォルダに書き込めないとき（`C:\Program Files` の下など）は `%LOCALAPPDATA%\RefluxScoreManager` に作る（すでにどちらかにファイルがあれば、そちらを使い続ける）。使っている場所は起動直後に画面の一番下に出る。
 
 ### client.json の項目
 

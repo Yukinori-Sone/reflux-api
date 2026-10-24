@@ -347,3 +347,4 @@ Reflux/offset finding.txt
 # Claude Code local files
 .claude/scratch/
 .claude/settings.local.json
+/dist/

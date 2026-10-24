@@ -1,0 +1,38 @@
+Reflux（カスタム版）
+==================
+
+beatmania IIDX INFINITAS のプレー記録・自己ベストを読み取って保存するツールです。
+本家 olji/Reflux（https://github.com/olji/Reflux）に、別のPCから記録を見るための API などを足したものです。
+ゲームのメモリは読むだけで、書き換えは一切しません。
+
+■ 動かし方
+1. このフォルダを好きな場所に置きます（例: C:\Reflux）。
+   C:\Program Files の下は書き込みに管理者権限が要るので避けてください。
+2. Reflux.exe を起動します。INFINITAS より先に起動しておいても大丈夫です（起動を待ちます）。
+   .NET のインストールは要りません。
+3. 記録は sessions フォルダ、自己ベストは tracker.db / tracker.tsv に保存されます。
+
+Windows の起動時に自動で起動したいときは、Reflux.exe のショートカットを
+スタートアップフォルダ（エクスプローラーのアドレス欄に shell:startup と入力）に置いてください。
+
+■ Reflux INFINITAS Score Manager（別のPCで記録を見るツール）から見るとき
+config.ini の [Api] を次のようにします。
+  enabled = true
+  host = localhost   … 同じPCのクライアントからだけ見るとき
+  host = +           … LAN の別PCから見るとき（下の準備が必要）
+  apikey = 好きな文字列（クライアントにも同じものを入れます）
+
+host = + にするときは、一度だけ管理者のコマンドプロンプトで次を実行し、
+ファイアウォールでポート 8790（TCP の受信）を許可してください。
+  netsh http add urlacl url=http://+:8790/ user=<Windowsのユーザー名>
+
+■ 更新するとき
+新しい版の中身をこのフォルダに上書きしてください。ただし config.ini は上書きしないでください
+（設定が初期値に戻ります）。記録のファイル（tracker.db、sessions、plays.jsonl など）は配布物に入っていないので、
+上書きしても消えません。
+
+■ 詳しい資料
+docs フォルダ:
+  設定ファイルメモ_Original.md … 本家の設定と出力ファイル
+  設定ファイルメモ_Custom.md   … カスタム版で増えた・変わった設定とファイル
+  API仕様.md                  … API の一覧
