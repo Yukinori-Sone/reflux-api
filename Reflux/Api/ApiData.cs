@@ -21,6 +21,9 @@ namespace Reflux.Api
         public string UnlockType { get; set; }
         /// <summary>Label from customtypes.txt (song pack, DJP unlock etc.), null if none</summary>
         public string Label { get; set; }
+        /// <summary>False when the song is missing from the game's unlock data: it isn't shown on song select at all
+        /// (unlike a locked song, which is shown greyed out and can be unlocked)</summary>
+        public bool Listed { get; set; }
     }
 
     class ChartDto
@@ -79,6 +82,7 @@ namespace Reflux.Api
                     Folder = song.folder,
                     UnlockType = song.type.ToString(),
                     Label = Utils.customTypes.TryGetValue(song.ID, out var label) ? label : null,
+                    Listed = Utils.unlockDb.ContainsKey(song.ID),
                 });
                 for (int i = 0; i < song.level.Length; i++)
                 {

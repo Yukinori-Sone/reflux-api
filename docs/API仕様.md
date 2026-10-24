@@ -68,7 +68,7 @@
 
 ### `GET /api/songs` / `charts` / `scores`
 
-- songs: `{id, title, title2, artist, genre, folder, unlockType, label}`。`id` は5桁ゼロ埋め、`folder` はバージョンフォルダ番号（0 = 1st style、1 = substream、80 = INFINITAS）
+- songs: `{id, title, title2, artist, genre, folder, unlockType, label, listed}`。`listed` が false の曲はゲームの解禁データに無く、選曲画面に表示されない（BIT 等で解禁できる「未解禁」とは別。2026101400 では IIDX RED Ending (Ryu☆Remix)・Seven Times Four の2曲。クライアントでは NOT DISPLAYED）。`id` は5桁ゼロ埋め、`folder` はバージョンフォルダ番号（0 = 1st style、1 = substream、80 = INFINITAS）
 - charts: `{songId, difficulty, level, notes, bpm}`。`difficulty` は `SPB` `SPN` `SPH` `SPA` `SPL` `DPB` `DPN` `DPH` `DPA` `DPL`
 - scores: `{songId, difficulty, unlocked, lamp, grade, exScore, missCount, pGreat, great, bad, poor, clearCount, playCount}`。`clearCount` / `playCount` はゲームが持っているクリア回数・プレー回数（自己ベストのハッシュマップの +0x28 / +0x2C。選曲画面に戻るたびに読み直し、変わっていれば `scoresRevision` が増える）。
   `lamp` は `NP` `F` `AC` `EC` `NC` `HC` `EX` `FC` `PFC`。`pGreat` 〜 `poor` は Reflux が記録したプレーで自己ベストと一致したときだけ値が入る（ゲームは保存していない）
