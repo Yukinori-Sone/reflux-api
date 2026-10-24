@@ -127,6 +127,7 @@ namespace Reflux.Api
         {
             lock (sync) { status.ProcessId = pid; }
         }
+        public static string GameVersion { get { lock (sync) { return status.GameVersion; } } }
         public static void SetVersions(string gameVersion, string offsetsVersion)
         {
             lock (sync)

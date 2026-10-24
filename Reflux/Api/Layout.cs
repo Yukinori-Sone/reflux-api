@@ -223,6 +223,7 @@ namespace Reflux.Api
         public ClearRateLayout ClearRate = new ClearRateLayout();
         public RivalLayout Rival = new RivalLayout();
         public PlayerLayout Player = new PlayerLayout();
+        public MastersLayout Masters = new MastersLayout();
     }
 
     /// <summary>
@@ -601,6 +602,7 @@ namespace Reflux.Api
                         "gamestate" => PreviewGameState(reader, layout.GameState),
                         "clearrate" => PreviewClearRate(reader, layout.ClearRate, q["songs"], count),
                         "rival" => PreviewRival(reader, layout.Rival, q["songs"]),
+                        "masters" => new { layout = ToJson(layout.Masters), masters = Masters.ReadExe(reader, layout.Masters, null) },
                         _ => null,
                     };
                 }
@@ -610,7 +612,7 @@ namespace Reflux.Api
                 }
                 if (result == null)
                 {
-                    ApiServer.Write(ctx, 400, Error("unknown_struct", "struct must be song, unlock, scoreMap, playData, judge, settings, currentSong, gameState, clearRate or rival")); return;
+                    ApiServer.Write(ctx, 400, Error("unknown_struct", "struct must be song, unlock, scoreMap, playData, judge, settings, currentSong, gameState, clearRate, rival or masters")); return;
                 }
                 ApiServer.Write(ctx, 200, JsonConvert.SerializeObject(result, ApiState.JsonSettings));
                 return;

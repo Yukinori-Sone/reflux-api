@@ -110,6 +110,31 @@
 curl -X PUT "$A/settings" -d '{"unlockCheckSeconds":-1,"trackerTsv":"onChange","processPriority":"belowNormal"}'
 ```
 
+### `GET /api/masters`（例外: リクエストのたびにゲームの exe の表を読む）
+
+マスター・定数の表。INFINITAS の更新で番号や並びが変わることがあるので、毎回ゲームから読み直す（読むのは exe の中の定数表だけで、数 KB）。
+
+- `{gameVersion, readAt, masters: [{key, name, source, address, note, warning, columns: [{key, header, numeric}], rows: [{<列のkey>: 値}]}]}`
+- `source`: `exe`（ゲームの exe の中の表から今読んだもの）／`reflux`（Reflux 側の定義。ゲームに表が無いか、まだ見つけていないもの）
+- `warning`: ゲームに未接続で読めないとき、または知らない画像名があるとき（表の位置や並びが変わった可能性）
+- 表示名を文字で持っているのは都道府県だけで、ほかは画像名しか無い。名前は画像名から Reflux が付けている（`Api/Masters.cs`）
+
+| key | 表 | source | 主な列 |
+|---|---|---|---|
+| `mode` | SP / DP | reflux | ID・名前 |
+| `playSide` | プレー側 | exe | ID・名前・Reflux の PlayType・画像名 |
+| `difficulty` | 譜面の種類 | exe | ID・名前（BEGINNER〜LEGGENDARIA）・Reflux の難易度・画像名 |
+| `lamp` | クリアランプ | exe | ID・名前・Reflux の Lamp・DJ POINT 補正（%）・画像名。PERFECT（Reflux のみ）の行を足してある |
+| `djLevel` | DJ LEVEL | reflux | ID・名前・条件・DJ POINT 補正（%） |
+| `grade` | 段位 | exe | ID（0 = 七級 … 18 = 皆伝）・名前・画像名 |
+| `pref` | 都道府県・エリア | exe | ID・名前（ゲームの中の文字列）・画像名・表の番号 |
+| `graphTarget` | スコアグラフのターゲット | exe | ID・名前・画像名 |
+| `folder` | 選曲画面のフォルダ | exe | No・名前（推定）・種別・画像名・ボイス番号（170件） |
+| `unlockType` | 解禁種別 | reflux | ID・名前・内容 |
+| `option` | オプション | reflux | 種類・layout の項目・値・名前 |
+
+曲・譜面・シリーズは `/api/songs` / `/api/charts` の内容なので、ここには含めない（クライアントのマスタータブは手元の DB から出す）。
+
 ## ゲーム更新対応用のエンドポイント（リクエストのたびにメモリを読む／ファイルを書く）
 
 `[Api]` が有効ならいつでも使える。メモリは読み取り専用で開く（書き込みは一切しない）。
@@ -195,7 +220,12 @@ curl -X PUT "$A/settings" -d '{"unlockCheckSeconds":-1,"trackerTsv":"onChange","
     "nodeSize": "0x30", "left": "0x0", "parent": "0x8", "right": "0x10", "isNil": "0x19", "song": "0x1C", "difficulty": "0x20", "rate": "0x24"
   },
   "rival": { "spData": "0x25D0FC0", "dpData": "0x25D0FC8", "begin": "0x0", "end": "0x8" },
-  "player": { "infinitasId": "0x25D0ED4" }
+  "player": { "infinitasId": "0x25D0ED4" },
+  "masters": { "difficulty": "0x527AB8", "difficultyCount": "0x5", "lamp": "0x5A8F40", "lampCount": "0x8", "grade": "0x52E7F0", "gradeCount": "0x13",
+    "playSide": "0x52E888", "playSideCount": "0x3", "graphTarget": "0x52E8A0", "graphTargetCount": "0x14",
+    "pref": "0x6EA958", "prefCount": "0x36", "prefEntrySize": "0x18", "prefName": "0x0", "prefImage": "0x8", "prefId": "0x10",
+    "folder": "0x6944B0", "folderCount": "0xAA", "folderEntrySize": "0x38", "folderKind": "0x0", "folderGroupImage": "0x10",
+    "folderImage": "0x18", "folderImage2": "0x20", "folderImage3": "0x28", "folderVoice": "0x30" }
 }
 ```
 
@@ -209,6 +239,8 @@ curl -X PUT "$A/settings" -d '{"unlockCheckSeconds":-1,"trackerTsv":"onChange","
 | `settings` | オプション。P2 側の値は `p2Offset` 先にある |
 | `clearRate` | 全国クリアレート。`spMap` / `dpMap` は **bm2dx のベースアドレスからの位置**で、そこにオブジェクト（仮想関数表 `0x1404E5D70`, head ノード, 件数）へのポインタがある。中身は MSVC の `std::map`（赤黒木）で、head の parent が根。ノードは left / parent / right、`isNil`（head なら 0 以外）、曲ID、譜面 0〜4（B〜L）、クリアレート × 100（無ければ -1） |
 | `rival` | ライバル。`spData` / `dpData` は **bm2dx のベースアドレスからの位置**で、そこに `GetRivalInfo` の応答（展開した KBin）を入れたバッファ `{begin, end}` へのポインタがある。バッファの中から `[長さ][人数]` に続く ID（`C` + 12桁）を探し、そこからビッグエンディアンで読む（`Api/Rivals.cs` の説明を参照）。1人分は ID・DJ NAME・店舗名（長さ付き文字列）、県・SP段位・DP段位、曲ごとに 52 バイト（曲ID、`00000014`、EX ×5、`00000014`、ランプ ×5） |
+| `player` | ログイン中のプレイヤー。`infinitasId` は **bm2dx のベースアドレスからの位置**で、`C` + 12桁の INFINITAS ID がある。直後はログイントークンなので、13文字より先は読まない |
+| `masters` | `/api/masters` の exe の表。位置は **bm2dx のベースアドレスからの位置**。`difficulty` など画像名の表は8バイトのポインタが件数分並ぶ。`pref` / `folder` は1件 `*EntrySize` バイトで、各項目の位置を指定する。探し方は `docs/INFINITAS動作.md` の「定数」。`GET /api/layout/preview?struct=masters` で試せる |
 | `gameState` | `judgeData + markerSearchStart` から `markerSearchLength` バイトの中で、10000 を超える値が8バイト間隔で3つ並ぶ所を探し、2つ目から `markerFromMagic` 先をプレー中マーカー（0 以外でプレー中）にする。選曲画面マーカーは `playSettings + songSelectMarker`（1 で選曲画面。プレー後にだけ見る） |
 
 ## ゲーム更新時の手順（例）
