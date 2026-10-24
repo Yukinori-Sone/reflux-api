@@ -601,7 +601,7 @@ namespace Reflux
             /* Compare segments of current version and latest release tag and notify if newer version is available */
             var assemblyInfo = System.Reflection.Assembly.GetExecutingAssembly().GetName();
             var version = assemblyInfo.Version.ToString(3);
-            Console.WriteLine(assemblyInfo.Name + " " + version);
+            Console.WriteLine(assemblyInfo.Name + " " + Api.BuildInfo.DisplayVersion); /* Upstream version + custom build mark */
             var netVersion = Network.GetLatestVersion();
             var segments = version.Split('.');
             for (int i = 0; i < segments.Length; i++)

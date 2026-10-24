@@ -4,6 +4,9 @@
     <OutputType>Exe</OutputType>
     <TargetFramework>netcoreapp3.1</TargetFramework>
     <Version>1.16.6</Version>
+    <!-- Custom build mark shown in the console and the API (the update check uses Version only). The date is the build date -->
+    <InformationalVersion>$(Version)+custom.$([System.DateTime]::Now.ToString('yyyyMMdd'))</InformationalVersion>
+    <IncludeSourceRevisionInInformationalVersion>false</IncludeSourceRevisionInInformationalVersion>
 	<ApplicationIcon>resources/icon.ico</ApplicationIcon>
     <OutputPath>reflux build</OutputPath>
 	<PublishSingleFile>true</PublishSingleFile>

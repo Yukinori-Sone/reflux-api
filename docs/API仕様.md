@@ -52,7 +52,7 @@
 |---|---|
 | `apiVersion` | API の版（今は 1） |
 | `instanceId` | Reflux を起動するたびに変わる ID。下の revision はこの ID が同じ間だけ比べられる |
-| `refluxVersion` | Reflux のバージョン |
+| `refluxVersion` | Reflux のバージョン。本家の版＋独自版の印（`1.16.6+custom.20261107`。日付はビルドした日） |
 | `attachState` | `waitingForProcess`（INFINITAS 待ち）、`checkingVersion`、`offsetMismatch`（オフセット不一致で待機中）、`offsetSearch`（コンソールで対話式探索中）、`loading`（曲データ読み込み中）、`ready`（監視中） |
 | `attachStateSince` | その状態になった時刻（UTC） |
 | `message` | 状態の補足（不一致のときの案内、曲リストのチェック結果など）。無ければ `null` |

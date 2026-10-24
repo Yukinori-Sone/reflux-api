@@ -96,7 +96,7 @@ namespace Reflux.Api
 
         static ApiState()
         {
-            status.RefluxVersion = System.Reflection.Assembly.GetExecutingAssembly().GetName().Version.ToString(3);
+            status.RefluxVersion = BuildInfo.DisplayVersion;
             status.AttachState = AttachState.WaitingForProcess;
             status.AttachStateSince = DateTime.UtcNow;
         }
