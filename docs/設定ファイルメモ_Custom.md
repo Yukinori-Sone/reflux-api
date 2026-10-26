@@ -15,7 +15,7 @@
 | 【追加】ファイル | `plays.jsonl` | 全プレー記録（INFINITAS ID 付き）。`[Api]` 有効時だけ。`/api/plays` で返す |
 | 【変更】設定 | セッション TSV の単位 | `coresettings.json` の `sessionFile` で、起動ごと（本家と同じ）／日ごと／月ごと／1ファイルを選べる |
 | 【変更】動作 | `tracker.db` / `log.txt` | INF 再起動（再アタッチ）時の読み込みを修正 |
-| 【追加】別アプリ | Reflux.Client の `client.json` / `reflux-client.db` | 別PC側のクライアント（コアとは別の exe） |
+| 【追加】別アプリ | Reflux INFINITAS Score Manager（`RefluxScoreManager.exe`）の `client.json` / `reflux-client.db` | 別PC側のクライアント（コアとは別の exe） |
 | 【変更】動作 | セッション TSV/JSON | INF 再起動で記録が消える本家の不具合（Original の ※1）を修正 |
 | 【変更】動作 | `offsets.txt` / `archive/` | API からオフセットを書き換えられる。`[Api]` 有効時はバージョン不一致でも対話式探索にすぐ入らず待機する |
 | 【追加】ファイル | `coresettings.json` | コアの動作設定（監視間隔・解禁データの確認頻度・`tracker.tsv` の書き出し・優先度）。無ければ本家と同じ動き。API／クライアントの「コア設定」タブで書き換える |
@@ -104,9 +104,9 @@ New-NetFirewallRule -DisplayName "Reflux API" -Direction Inbound -Protocol TCP -
 
 - `tracker.tsv` の2秒ごとの書き直しなど、API 運用時は不要になるファイル出力の削減は**未着手**（実機確認後の候補）
 
-## 【追加】Reflux.Client（別PC側）
+## 【追加】Reflux INFINITAS Score Manager（別PC側のクライアント）
 
-コアとは別の exe（Reflux INFINITAS Score Manager、`RefluxScoreManager.exe`。ソースは `Reflux.Client/`）。exe と同じフォルダにファイルを作る。そのフォルダに書き込めないとき（`C:\Program Files` の下など）は `%LOCALAPPDATA%\RefluxScoreManager` に作る（すでにどちらかにファイルがあれば、そちらを使い続ける）。使っている場所は起動直後に画面の一番下に出る。
+コアとは別の exe（Reflux INFINITAS Score Manager、`RefluxScoreManager.exe`。ソースは `RefluxScoreManager/`）。exe と同じフォルダにファイルを作る。そのフォルダに書き込めないとき（`C:\Program Files` の下など）は `%LOCALAPPDATA%\RefluxScoreManager` に作る（すでにどちらかにファイルがあれば、そちらを使い続ける）。使っている場所は起動直後に画面の一番下に出る。
 
 ### client.json の項目
 

@@ -8,7 +8,7 @@ cd /d "%~dp0"
 set DIST=%~dp0dist
 
 for /f "usebackq delims=" %%v in (`powershell -NoProfile -Command "([xml](Get-Content 'Reflux\Reflux.csproj')).Project.PropertyGroup.Version | Where-Object { $_ } | Select-Object -First 1"`) do set CORE_VER=%%v
-for /f "usebackq delims=" %%v in (`powershell -NoProfile -Command "([xml](Get-Content 'Reflux.Client\Reflux.Client.csproj')).Project.PropertyGroup.Version | Where-Object { $_ } | Select-Object -First 1"`) do set CLIENT_VER=%%v
+for /f "usebackq delims=" %%v in (`powershell -NoProfile -Command "([xml](Get-Content 'RefluxScoreManager\RefluxScoreManager.csproj')).Project.PropertyGroup.Version | Where-Object { $_ } | Select-Object -First 1"`) do set CLIENT_VER=%%v
 for /f "usebackq delims=" %%d in (`powershell -NoProfile -Command "Get-Date -Format yyyyMMdd"`) do set BUILD_DATE=%%d
 set CORE_NAME=Reflux-%CORE_VER%+custom.%BUILD_DATE%
 set CLIENT_NAME=RefluxScoreManager-%CLIENT_VER%+%BUILD_DATE%
@@ -35,7 +35,7 @@ copy /y "distribution\Reflux\*.txt" "%DIST%\Reflux\" >nul
 
 echo.
 echo === Client (RefluxScoreManager) ===
-dotnet publish Reflux.Client\Reflux.Client.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -p:EnableCompressionInSingleFile=true -o "%DIST%\RefluxScoreManager" -nologo -v q
+dotnet publish RefluxScoreManager\RefluxScoreManager.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -p:EnableCompressionInSingleFile=true -o "%DIST%\RefluxScoreManager" -nologo -v q
 if errorlevel 1 goto :failed
 del /q "%DIST%\RefluxScoreManager\*.pdb" 2>nul
 copy /y "LICENSE" "%DIST%\RefluxScoreManager\" >nul

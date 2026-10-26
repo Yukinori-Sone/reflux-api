@@ -1,6 +1,6 @@
 # Reflux コア API 仕様
 
-独自に追加した Reflux コアの HTTP API（`Reflux/Api/`）の一覧。クライアント（`Reflux.Client`）や curl から使う。
+独自に追加した Reflux コアの HTTP API（`Reflux/Api/`）の一覧。クライアント（Reflux INFINITAS Score Manager、`RefluxScoreManager/`）や curl から使う。
 エンドポイントを追加・変更したら、このファイルも更新すること。
 
 ## 接続
