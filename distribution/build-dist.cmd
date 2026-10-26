@@ -1,17 +1,27 @@
 @echo off
-rem Build the distribution set: dist\Reflux (core) and dist\RefluxScoreManager (client), and a zip of each.
-rem Both are self-contained (no .NET install needed). dist\ is ignored by git.
-rem Usage: build-dist.bat
+rem Build the distribution set into dist\<mode>: Reflux (core), RefluxScoreManager (client) and a zip of each.
+rem Called by build-dist-self-contained.bat / build-dist-framework-dependent.bat in the repository root.
+rem   self-contained       : the client includes the .NET runtime (about 50 MB, nothing to install)
+rem   framework-dependent  : the client needs the .NET 9 Desktop Runtime (about 2.5 MB)
+rem The core is always self-contained: it targets .NET Core 3.1, whose runtime is out of support.
+rem dist\ is ignored by git.
+rem Usage: distribution\build-dist.cmd self-contained|framework-dependent
 setlocal
 rem Keep this file ASCII only: cmd reads it in the console code page, which may not be cp932
-cd /d "%~dp0"
-set DIST=%~dp0dist
+set MODE=%~1
+if /i not "%MODE%"=="self-contained" if /i not "%MODE%"=="framework-dependent" (
+  echo Usage: %~nx0 self-contained^|framework-dependent
+  exit /b 1
+)
+cd /d "%~dp0.."
+set DIST=%CD%\dist\%MODE%
 
 for /f "usebackq delims=" %%v in (`powershell -NoProfile -Command "([xml](Get-Content 'Reflux\Reflux.csproj')).Project.PropertyGroup.Version | Where-Object { $_ } | Select-Object -First 1"`) do set CORE_VER=%%v
 for /f "usebackq delims=" %%v in (`powershell -NoProfile -Command "([xml](Get-Content 'RefluxScoreManager\RefluxScoreManager.csproj')).Project.PropertyGroup.Version | Where-Object { $_ } | Select-Object -First 1"`) do set CLIENT_VER=%%v
 for /f "usebackq delims=" %%d in (`powershell -NoProfile -Command "Get-Date -Format yyyyMMdd"`) do set BUILD_DATE=%%d
 set CORE_NAME=Reflux-%CORE_VER%+custom.%BUILD_DATE%
 set CLIENT_NAME=RefluxScoreManager-%CLIENT_VER%+%BUILD_DATE%
+if /i "%MODE%"=="framework-dependent" set CLIENT_NAME=%CLIENT_NAME%-needs-dotnet9
 echo Core   %CORE_NAME%
 echo Client %CLIENT_NAME%
 
@@ -35,11 +45,16 @@ copy /y "distribution\Reflux\*.txt" "%DIST%\Reflux\" >nul
 
 echo.
 echo === Client (RefluxScoreManager) ===
-dotnet publish RefluxScoreManager\RefluxScoreManager.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -p:EnableCompressionInSingleFile=true -o "%DIST%\RefluxScoreManager" -nologo -v q
+if /i "%MODE%"=="self-contained" (
+  dotnet publish RefluxScoreManager\RefluxScoreManager.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -p:EnableCompressionInSingleFile=true -o "%DIST%\RefluxScoreManager" -nologo -v q
+) else (
+  dotnet publish RefluxScoreManager\RefluxScoreManager.csproj -c Release -r win-x64 --self-contained false -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -o "%DIST%\RefluxScoreManager" -nologo -v q
+)
 if errorlevel 1 goto :failed
 del /q "%DIST%\RefluxScoreManager\*.pdb" 2>nul
 copy /y "LICENSE" "%DIST%\RefluxScoreManager\" >nul
 copy /y "distribution\RefluxScoreManager\*.txt" "%DIST%\RefluxScoreManager\" >nul
+if /i "%MODE%"=="framework-dependent" copy /y "distribution\framework-dependent\*.txt" "%DIST%\RefluxScoreManager\" >nul
 
 echo.
 echo === Zip ===
