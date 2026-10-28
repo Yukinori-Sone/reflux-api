@@ -9,7 +9,9 @@ namespace Reflux.Api
 {
     /// <summary>
     /// Runtime settings of the main loop that can be changed through the API (GET|PUT /api/settings) and are kept in
-    /// coresettings.json. Defaults behave like upstream Reflux. config.ini is left in upstream format.
+    /// coresettings.json. This branch is for running Reflux as an API server, so the defaults drop the files the clients don't
+    /// need (tracker.tsv, one session TSV per start); the values that behave like upstream are still available. config.ini is left in
+    /// upstream format.
     /// </summary>
     static class CoreSettings
     {
@@ -17,7 +19,7 @@ namespace Reflux.Api
         public static readonly int[] PollIntervals = { 500, 1000, 2000, 3000, 5000 };
         public static readonly string[] TrackerTsvModes = { "always", "onChange", "never" };
         public static readonly string[] Priorities = { "normal", "belowNormal", "idle" };
-        public static readonly string[] SessionFileModes = { "perStart", "daily", "monthly", "single" };
+        public static readonly string[] SessionFileModes = { "perStart", "daily", "monthly", "single", "none" };
 
         class Values
         {
@@ -26,11 +28,11 @@ namespace Reflux.Api
             /// <summary>Unlock state check on song select: 0 every poll, -1 only when returning to song select, N at most every N seconds</summary>
             public int UnlockCheckSeconds = 0;
             /// <summary>tracker.tsv on song select: always (every poll), onChange (after a play, an unlock change or attach), never</summary>
-            public string TrackerTsv = "always";
+            public string TrackerTsv = "never"; /* Upstream: always */
             /// <summary>Process priority of Reflux itself</summary>
             public string ProcessPriority = "normal";
-            /// <summary>Session TSV unit: perStart (one file per Reflux start, upstream), daily, monthly or single</summary>
-            public string SessionFile = "perStart";
+            /// <summary>Session TSV unit: perStart (one file per Reflux start, upstream), daily, monthly, single or none</summary>
+            public string SessionFile = "monthly"; /* Upstream: perStart */
         }
 
         static readonly object sync = new object();
@@ -175,6 +177,7 @@ namespace Reflux.Api
         {
             string mode;
             lock (sync) { mode = values.SessionFile; }
+            if (mode == "none") { return null; } /* plays.jsonl keeps the history */
             var now = Config.UseLocaltime ? DateTime.Now : DateTime.UtcNow;
             var file = mode switch
             {

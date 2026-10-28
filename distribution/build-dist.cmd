@@ -42,6 +42,7 @@ copy /y "Reflux\*.html" "%DIST%\Reflux\" >nul
 copy /y "Reflux\segment-display.js" "%DIST%\Reflux\" >nul
 copy /y "LICENSE" "%DIST%\Reflux\" >nul
 copy /y "distribution\Reflux\*.txt" "%DIST%\Reflux\" >nul
+copy /y "distribution\Reflux\*.bat" "%DIST%\Reflux\" >nul
 
 echo.
 echo === Client (RefluxScoreManager) ===

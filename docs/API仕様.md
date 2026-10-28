@@ -96,15 +96,15 @@
 
 ### コアの動作設定（`/api/settings`、`coresettings.json`）
 
-初期値は本家と同じ動き。クライアントの「コア設定」タブから変えられる。ファイルが無ければ初期値。
+初期値は API 運用向け（`tracker.tsv` を書かない・セッション TSV は月ごと。ほかは本家と同じ）。クライアントの「コア設定」タブから変えられる。ファイルが無ければ初期値。
 
 | キー | 値 | 初期値 | 内容 |
 |---|---|---|---|
 | `pollIntervalMs` | 500 / 1000 / 2000 / 3000 / 5000 | 2000 | メインループの間隔（ゲームの状態を見る間隔）。プレー中に読むのは4バイトだけ |
 | `unlockCheckSeconds` | -1 / 0 / 1〜3600 | 0 | 選曲画面で解禁状態を読み直す頻度。0 = 毎回、-1 = 選曲画面に戻ったときだけ、N = 最短 N 秒ごと（選曲画面に戻ったときは必ず読む） |
-| `trackerTsv` | `always` / `onChange` / `never` | `always` | 選曲画面での `tracker.tsv` の書き出し。`onChange` はプレーの記録後・解禁状態の変化時・アタッチ後だけ書く |
+| `trackerTsv` | `always` / `onChange` / `never` | `never`（本家は `always`） | 選曲画面での `tracker.tsv` の書き出し。`onChange` はプレーの記録後・解禁状態の変化時・アタッチ後だけ書く |
 | `processPriority` | `normal` / `belowNormal` / `idle` | `normal` | Reflux 自身のプロセス優先度 |
-| `sessionFile` | `perStart` / `daily` / `monthly` / `single` | `perStart` | `sessions/` のセッション TSV の分け方。`perStart` = Reflux の起動ごと（本家と同じ `Session_yyyy_MM_dd_HH_mm_ss.tsv`）、`daily` = `Session_yyyy_MM_dd.tsv`、`monthly` = `Session_yyyy_MM.tsv`、`single` = `Session_all.tsv`。セッション JSON は変わらない |
+| `sessionFile` | `perStart` / `daily` / `monthly` / `single` / `none` | `monthly`（本家は `perStart`） | `sessions/` のセッション TSV の分け方（`none` = 出力しない）。`perStart` = Reflux の起動ごと（本家と同じ `Session_yyyy_MM_dd_HH_mm_ss.tsv`）、`daily` = `Session_yyyy_MM_dd.tsv`、`monthly` = `Session_yyyy_MM.tsv`、`single` = `Session_all.tsv`。セッション JSON は変わらない |
 
 ```sh
 curl -X PUT "$A/settings" -d '{"unlockCheckSeconds":-1,"trackerTsv":"onChange","processPriority":"belowNormal"}'

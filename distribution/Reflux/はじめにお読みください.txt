@@ -12,12 +12,22 @@ beatmania IIDX INFINITAS のプレー記録・自己ベストを読み取って�
    .NET のインストールは要りません。
 3. 記録は sessions フォルダ、自己ベストは tracker.db / tracker.tsv に保存されます。
 
-Windows の起動時に自動で起動したいときは、Reflux.exe のショートカットを
-スタートアップフォルダ（エクスプローラーのアドレス欄に shell:startup と入力）に置いてください。
+■ Windows の起動時に自動で動かすとき（どちらか一方）
+・サービスにする（おすすめ）: Service-Install.bat を右クリックして「管理者として実行」します。
+  「Reflux API Server」というサービスになり、Windows の起動時に自動で開始し、窓は出ません。
+  止まったときは自動で起動し直します。やめるときは Service-UnInstall.bat を同じく管理者として実行します。
+・スタートアップに置く: Reflux.exe のショートカットをスタートアップフォルダ
+  （エクスプローラーのアドレス欄に shell:startup と入力）に置きます。窓が出ます。
+同じフォルダの Reflux は1つしか動きません（両方にしても、あとから起動した方は終了します）。
 
-■ Reflux INFINITAS Score Manager（別のPCで記録を見るツール）から見るとき
-config.ini の [Api] を次のようにします。
-  enabled = true
+■ 初期設定について
+このカスタム版は、記録を Reflux INFINITAS Score Manager（API）で見ることを前提にしているため、
+配信用のファイル（latest.txt、playstate.txt、marquee.txt、title.txt など）は出力しない設定にしています。
+配信で使うときは config.ini の [Record] savelatestjson / savelatesttxt と [Livestream] の各項目を true にしてください。
+
+■ Reflux INFINITAS Score Manager（記録を見るツール）から見るとき
+config.ini の [Api] は最初から enabled = true です（同じ PC からだけ見られる host = localhost）。
+別の PC から見るときは、次のようにします。
   host = localhost   … 同じPCのクライアントからだけ見るとき
   host = +           … LAN の別PCから見るとき（下の準備が必要）
   apikey = 好きな文字列（クライアントにも同じものを入れます）
@@ -25,8 +35,11 @@ config.ini の [Api] を次のようにします。
 host = + にするときは、一度だけ管理者のコマンドプロンプトで次を実行し、
 ファイアウォールでポート 8790（TCP の受信）を許可してください。
   netsh http add urlacl url=http://+:8790/ user=<Windowsのユーザー名>
+（サービスで動かしている場合、netsh の手順は不要です。ファイアウォールの許可だけ必要です）
 
 ■ 更新するとき
+サービスで動かしている場合は、先にサービスを止めてください（管理者のコマンドプロンプトで sc stop RefluxAPIServer、
+終わったら sc start RefluxAPIServer）。
 新しい版の中身をこのフォルダに上書きしてください。ただし config.ini は上書きしないでください
 （設定が初期値に戻ります）。記録のファイル（tracker.db、sessions、plays.jsonl など）は配布物に入っていないので、
 上書きしても消えません。

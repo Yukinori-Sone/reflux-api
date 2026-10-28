@@ -8,17 +8,21 @@
 
 ## 差分の早見表
 
+**この独自版（MyCustom ブランチ）は API サーバーとしての運用が前提**なので、同梱の `config.ini` と `coresettings.json` の初期値を、クライアントが API から読める内容のファイル出力をしない設定にしている（下の「API 運用向けの初期値」）。本家と同じ出力にしたいときは各項目を戻す。
+
 | 区分 | 対象 | 概要 |
 |---|---|---|
 | 【追加】設定 | `config.ini` の `[Api]` セクション | 別PCクライアント用の HTTP API。初期値は無効なので、そのままなら本家と同じ動き |
 | 【追加】ファイル | `bestdetail.json` | 自己ベストを出したプレーの判定内訳（PG/GR、BAD/POOR） |
 | 【追加】ファイル | `plays.jsonl` | 全プレー記録（INFINITAS ID 付き）。`[Api]` 有効時だけ。`/api/plays` で返す |
-| 【変更】設定 | セッション TSV の単位 | `coresettings.json` の `sessionFile` で、起動ごと（本家と同じ）／日ごと／月ごと／1ファイルを選べる |
+| 【変更】設定 | セッション TSV の単位 | `coresettings.json` の `sessionFile` で、起動ごと（本家と同じ）／日ごと／月ごと（初期値）／1ファイル／出力しないを選べる |
+| 【変更】初期値 | 同梱の `config.ini` | `[Api] enabled = true`、`savelatestjson`・`savelatesttxt`・`[Livestream]` の3項目を false（本家は true） |
+| 【追加】動作 | Windows サービス | `Reflux.exe --service` でサービスとして動く。登録・解除は `Service-Install.bat` / `Service-UnInstall.bat`。同じフォルダの Reflux は1つしか動かない |
 | 【変更】動作 | `tracker.db` / `log.txt` | INF 再起動（再アタッチ）時の読み込みを修正 |
 | 【追加】別アプリ | Reflux INFINITAS Score Manager（`RefluxScoreManager.exe`）の `client.json` / `reflux-client.db` | 別PC側のクライアント（コアとは別の exe） |
 | 【変更】動作 | セッション TSV/JSON | INF 再起動で記録が消える本家の不具合（Original の ※1）を修正 |
 | 【変更】動作 | `offsets.txt` / `archive/` | API からオフセットを書き換えられる。`[Api]` 有効時はバージョン不一致でも対話式探索にすぐ入らず待機する |
-| 【追加】ファイル | `coresettings.json` | コアの動作設定（監視間隔・解禁データの確認頻度・`tracker.tsv` の書き出し・優先度）。無ければ本家と同じ動き。API／クライアントの「コア設定」タブで書き換える |
+| 【追加】ファイル | `coresettings.json` | コアの動作設定（監視間隔・解禁データの確認頻度・`tracker.tsv` の書き出し・優先度・セッション TSV の単位）。無ければ初期値（`tracker.tsv` を書かない・セッション TSV は月ごと。ほかは本家と同じ）。API／クライアントの「コア設定」タブで書き換える |
 | 【追加】ファイル | `layout.json` | 構造体の配置（曲リスト・解禁データ・自己ベスト・プレーデータ・判定・オプション・選曲中の譜面・状態判定の目印の、サイズや各項目の位置）。無ければ組み込みの初期値。API で書き換える |
 | 【変更】動作 | 曲リストの読み込み | 読み込んだ曲リストがおかしければ（曲数・ID の並び・レベル・ノーツ数）先へ進まず待つ。本家は先へ進んで落ちることがある |
 
@@ -88,15 +92,36 @@ New-NetFirewallRule -DisplayName "Reflux API" -Direction Inbound -Protocol TCP -
 
 ### 【追加】コアの動作設定（`coresettings.json`）
 
-| 設定 | 本家の動き（＝初期値） | 変えられる内容 |
-|---|---|---|
-| 監視間隔 | 2秒ごと | 0.5 / 1 / 2 / 3 / 5 秒 |
-| 解禁データの確認 | 選曲画面で2秒ごとに読み直す | 10・30・60秒ごと、選曲画面に戻ったときだけ |
-| `tracker.tsv` | 選曲画面で2秒ごとに書き直す（約 480KB） | 変化があったときだけ（プレー後・解禁時・アタッチ後）、書き出さない |
-| Reflux の優先度 | 通常 | 通常以下、低 |
-| セッション TSV の単位 | Reflux の起動ごとに1ファイル（`Session_yyyy_MM_dd_HH_mm_ss.tsv`） | 日ごと（`Session_yyyy_MM_dd.tsv`）、月ごと（`Session_yyyy_MM.tsv`）、1ファイル（`Session_all.tsv`）。無ければヘッダー付きで作り、あれば追記する。日付は `[Record] uselocaltime` に従う。セッション JSON は起動ごとのまま |
+| 設定 | 本家の動き | 初期値 | 変えられる内容 |
+|---|---|---|---|
+| 監視間隔 | 2秒ごと | 本家と同じ | 0.5 / 1 / 2 / 3 / 5 秒 |
+| 解禁データの確認 | 選曲画面で2秒ごとに読み直す | 本家と同じ | 10・30・60秒ごと、選曲画面に戻ったときだけ |
+| `tracker.tsv` | 選曲画面で2秒ごとに書き直す（約 480KB） | **書き出さない** | 毎回（本家と同じ）、変化があったときだけ（プレー後・解禁時・アタッチ後） |
+| Reflux の優先度 | 通常 | 本家と同じ | 通常以下、低 |
+| セッション TSV の単位 | Reflux の起動ごとに1ファイル（`Session_yyyy_MM_dd_HH_mm_ss.tsv`） | **月ごと** | 起動ごと（本家と同じ）、日ごと（`Session_yyyy_MM_dd.tsv`）、月ごと（`Session_yyyy_MM.tsv`）、1ファイル（`Session_all.tsv`）、出力しない（プレー履歴は `plays.jsonl` に残る）。無ければヘッダー付きで作り、あれば追記する。日付は `[Record] uselocaltime` に従う。セッション JSON は起動ごとのまま |
 
 形式は [API仕様.md](API仕様.md) の「コアの動作設定」。`[Api]` が無効でも、ファイルがあれば使われる。
+
+### 【変更】API 運用向けの初期値（同梱の `config.ini`）
+
+| 項目 | 本家 | 独自版 | 止まる出力 |
+|---|---|---|---|
+| `[Record] savelatestjson` | true | false | `latest.json` |
+| `[Record] savelatesttxt` | true | false | `latest.txt`・`latest-*.txt` |
+| `[Livestream] showplaystate` | true | false | `playstate.txt` |
+| `[Livestream] enablemarquee` | true | false | `marquee.txt` |
+| `[Livestream] enablefullsonginfo` | true | false | `title.txt`・`artist.txt`・`englishtitle.txt`・`genre.txt`・`level.txt`・`folder.txt` |
+| `[Api] enabled` | （項目なし） | true | ―（`host = localhost` なので同じ PC からだけ。LAN の別 PC からは `host = +` と urlacl が必要） |
+
+残る出力: `tracker.db`（自己ベストの保存。PERFECT などゲームのメモリに無い情報）、`bestdetail.json`（判定の内訳）、`plays.jsonl`（プレー履歴）、`sessions/Session_*.tsv`（月ごと）、`log.txt`（エラー時）。配信で使う場合は `[Livestream]` などを true に戻す。
+
+### 【追加】Windows サービス
+
+- `Service-Install.bat`（管理者で実行）: 同じフォルダの `Reflux.exe` をサービス「Reflux API Server」（`RefluxAPIServer`）として登録して起動する。Windows の起動時に自動で開始（遅延開始）、アカウントは LocalSystem、止まったら1分後に再起動（3回まで、1日でリセット）
+- `Service-UnInstall.bat`（管理者で実行）: 停止して登録を消す。フォルダの中身はそのまま
+- サービスのときは画面に窓が出ない。状態は API（`/api/status`）かクライアントで見る。エラーは `log.txt`
+- 同じフォルダの Reflux は1つしか動かない（あとから起動した方はメッセージを出して終了する）。サービスにしたら、スタートアップのショートカットは消す
+- オフセット不一致のときの対話式探索（コンソールで Enter）はサービスでは使えない。API（`PUT /api/offsets`）で直す
 
 本家の不具合として直したものは [本家不具合修正一覧.md](本家不具合修正一覧.md) にも記録している。
 

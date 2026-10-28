@@ -24,9 +24,16 @@ namespace Reflux
         [DllImport("kernel32.dll")]
         public static extern bool CloseHandle(IntPtr hObject);
 
-        static void Main()
+        static void Main(string[] args)
         {
+            if (Api.ServiceHost.RunIfService(args, () => Main(new string[0]))) { return; } /* Reflux.exe --service */
             Api.StartupDirectory.Apply(); /* Data files are relative to the current directory: use the exe's folder */
+            if (!Api.ServiceHost.AcquireSingleInstance())
+            {
+                Console.WriteLine("Reflux is already running from this folder (as a program or as the service). Exiting.");
+                Thread.Sleep(5000);
+                return;
+            }
             Utils.CheckVersion();
             Config.Parse("config.ini");
             BestDetail.Load();
@@ -233,7 +240,7 @@ namespace Reflux
                 /* Only create once per Reflux run, re-attaching after an INFINITAS restart would otherwise wipe earlier plays */
                 if (Config.Save_local)
                 {
-                    Api.CoreSettings.SessionFile(sessionFile); /* Creates the file with the header when missing; the unit is a core setting */
+                    Api.CoreSettings.SessionFile(sessionFile); /* Creates the file with the header when missing; the unit is a core setting (null = none) */
                 }
 
                 if (Config.Save_json && !File.Exists(jsonfile.FullName))
@@ -400,7 +407,8 @@ namespace Reflux
                                             Tracker.trackerDb[c] = entry;
                                             Tracker.SaveTracker();
 
-                                            WriteLine(Api.CoreSettings.SessionFile(sessionFile), latestData.GetTsvEntry());
+                                            var sessionTsv = Api.CoreSettings.SessionFile(sessionFile);
+                                            if (sessionTsv != null) { WriteLine(sessionTsv, latestData.GetTsvEntry()); }
                                         }
                                         catch (Exception e)
                                         {
