@@ -43,6 +43,12 @@ copy /y "Reflux\segment-display.js" "%DIST%\Reflux\" >nul
 copy /y "LICENSE" "%DIST%\Reflux\" >nul
 copy /y "distribution\Reflux\*.txt" "%DIST%\Reflux\" >nul
 copy /y "distribution\Reflux\*.bat" "%DIST%\Reflux\" >nul
+rem Tray monitor for the service (.NET Framework 4.8, nothing to install)
+dotnet build RefluxAPIServerMonitor\RefluxAPIServerMonitor.csproj -c Release -nologo -v q -o "%DIST%\monitor-build"
+if errorlevel 1 goto :failed
+copy /y "%DIST%\monitor-build\RefluxAPIServerMonitor.exe" "%DIST%\Reflux\" >nul
+copy /y "%DIST%\monitor-build\RefluxAPIServerMonitor.exe.config" "%DIST%\Reflux\" >nul
+rmdir /s /q "%DIST%\monitor-build"
 
 echo.
 echo === Client (RefluxScoreManager) ===
