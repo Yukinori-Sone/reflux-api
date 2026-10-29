@@ -150,4 +150,5 @@ New-NetFirewallRule -DisplayName "Reflux API" -Direction Inbound -Protocol TCP -
 |---|---|---|---|---|---|---|
 | `client.json` | 接続設定 | 初回の「接続」時 | 起動時 | 「接続」ボタンを押すたび | ― | ― |
 | `reflux-client.db` | SQLite。曲・譜面・スコア・シリーズ名・フォルダ定義・クリアレート・ライバル・プレー履歴（`play` 表、INFINITAS ID 付き）・最終取得日時（`sync_info` 表）。プレー履歴はコアから差分だけ取ってためるので、**消すとコアの `plays.jsonl` から取り直しになる**。シリーズ名やフォルダの抽出条件はこの DB を直接編集して変えられる | 起動時（無ければ） | 起動時・画面更新時 | コアの revision が変わったとき（曲・譜面 / スコア） | ― | `PollIntervalMs`（確認間隔） |
+| `ドキュメント\RefluxScoreManager\export\` | Excel の書き出し先（「全タブをExcelに書き出し...」は日時のフォルダを作ってその中に5ブック。タブごとの書き出しは保存先を選べる） | 書き出し時 | ― | ― | ― | ― |
 | `reflux-client.db-wal` / `-shm` | SQLite の作業ファイル（WAL モード） | DB と同時 | ― | DB 更新時 | 正常終了時に SQLite が整理 | ― |
