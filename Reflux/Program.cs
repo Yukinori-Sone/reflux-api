@@ -112,7 +112,18 @@ namespace Reflux
 
                 Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
 
-                var bm2dxModule = process.MainModule;
+                ProcessModule bm2dxModule;
+                try
+                {
+                    bm2dxModule = process.MainModule;
+                }
+                catch (Exception) when (process.HasExited)
+                {
+                    /* Found while INFINITAS was closing: look for it again instead of crashing */
+                    Console.WriteLine("INFINITAS exited while hooking, retrying...");
+                    CloseHandle(processHandle);
+                    continue;
+                }
                 Offsets.LoadOffsets();
 
                 /* Figure out if offset file is relevant */
