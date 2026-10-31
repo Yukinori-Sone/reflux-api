@@ -553,7 +553,7 @@ namespace Reflux
                     }
                     finally
                     {
-                        Thread.Sleep(Api.CoreSettings.PollIntervalMs); /* Was 2000 */
+                        Thread.Sleep(Api.CoreSettings.PollIntervalFor(state)); /* Was 2000 */
                     }
                 }
 

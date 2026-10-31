@@ -17,6 +17,7 @@ namespace Reflux.Api
     {
         const string FileName = "coresettings.json";
         public static readonly int[] PollIntervals = { 500, 1000, 2000, 3000, 5000 };
+        public static readonly int[] PlayPollIntervals = { 250, 500, 1000, 2000, 3000, 5000 };
         public static readonly string[] TrackerTsvModes = { "always", "onChange", "never" };
         public static readonly string[] Priorities = { "normal", "belowNormal", "idle" };
         public static readonly string[] SessionFileModes = { "perStart", "daily", "monthly", "single", "none" };
@@ -25,6 +26,8 @@ namespace Reflux.Api
         {
             /// <summary>Main loop interval</summary>
             public int PollIntervalMs = 2000;
+            /// <summary>Main loop interval while playing and on the result screen (catches the result screen sooner)</summary>
+            public int PlayPollIntervalMs = 2000;
             /// <summary>Unlock state check on song select: 0 every poll, -1 only when returning to song select, N at most every N seconds</summary>
             public int UnlockCheckSeconds = 0;
             /// <summary>tracker.tsv on song select: always (every poll), onChange (after a play, an unlock change or attach), never</summary>
@@ -70,6 +73,10 @@ namespace Reflux.Api
                         if (p.Value.Type != JTokenType.Integer || !PollIntervals.Contains((int)p.Value)) { return $"pollIntervalMs must be one of {string.Join(", ", PollIntervals)}"; }
                         v.PollIntervalMs = (int)p.Value;
                         break;
+                    case "playpollintervalms":
+                        if (p.Value.Type != JTokenType.Integer || !PlayPollIntervals.Contains((int)p.Value)) { return $"playPollIntervalMs must be one of {string.Join(", ", PlayPollIntervals)}"; }
+                        v.PlayPollIntervalMs = (int)p.Value;
+                        break;
                     case "unlockcheckseconds":
                         if (p.Value.Type != JTokenType.Integer || (int)p.Value < -1 || (int)p.Value > 3600) { return "unlockCheckSeconds must be -1 (on return to song select), 0 (every poll) or 1..3600"; }
                         v.UnlockCheckSeconds = (int)p.Value;
@@ -90,7 +97,7 @@ namespace Reflux.Api
                         v.SessionFile = sf;
                         break;
                     default:
-                        return $"unknown setting {p.Name} (known: pollIntervalMs, unlockCheckSeconds, trackerTsv, processPriority, sessionFile)";
+                        return $"unknown setting {p.Name} (known: pollIntervalMs, playPollIntervalMs, unlockCheckSeconds, trackerTsv, processPriority, sessionFile)";
                 }
             }
             return null;
@@ -115,6 +122,12 @@ namespace Reflux.Api
 
         #region Main loop
         public static int PollIntervalMs { get { lock (sync) { return values.PollIntervalMs; } } }
+
+        /// <summary>Main loop wait for the current game state: playPollIntervalMs while playing or on the result screen</summary>
+        public static int PollIntervalFor(GameState state)
+        {
+            lock (sync) { return state == GameState.playing || state == GameState.resultScreen ? values.PlayPollIntervalMs : values.PollIntervalMs; }
+        }
 
         /// <summary>Called by ApiState when the game (re)enters song select, including right after attaching</summary>
         public static void OnSongSelect()
@@ -209,6 +222,7 @@ namespace Reflux.Api
                     choices = new
                     {
                         pollIntervalMs = PollIntervals,
+                        playPollIntervalMs = PlayPollIntervals,
                         unlockCheckSeconds = "-1 = only when returning to song select, 0 = every poll, 1..3600 = at most every N seconds",
                         trackerTsv = TrackerTsvModes,
                         processPriority = Priorities,
