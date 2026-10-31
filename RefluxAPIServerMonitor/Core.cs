@@ -187,6 +187,8 @@ namespace Reflux.ServerMonitor
     sealed class CoreSettingsValues
     {
         [DataMember(Name = "pollIntervalMs")] public int PollIntervalMs { get; set; }
+        [DataMember(Name = "playPollIntervalMs", EmitDefaultValue = false)] public int? PlayPollIntervalMs { get; set; }
+        [DataMember(Name = "resultPollIntervalMs", EmitDefaultValue = false)] public int? ResultPollIntervalMs { get; set; }
         [DataMember(Name = "unlockCheckSeconds")] public int UnlockCheckSeconds { get; set; }
         [DataMember(Name = "trackerTsv")] public string TrackerTsv { get; set; }
         [DataMember(Name = "processPriority")] public string ProcessPriority { get; set; }

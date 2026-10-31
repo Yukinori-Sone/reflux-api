@@ -18,16 +18,19 @@ namespace Reflux.Api
         const string FileName = "coresettings.json";
         public static readonly int[] PollIntervals = { 500, 1000, 2000, 3000, 5000 };
         public static readonly int[] PlayPollIntervals = { 250, 500, 1000, 2000, 3000, 5000 };
+        public static readonly int[] ResultPollIntervals = { 100, 250, 500, 1000, 2000, 3000, 5000 };
         public static readonly string[] TrackerTsvModes = { "always", "onChange", "never" };
         public static readonly string[] Priorities = { "normal", "belowNormal", "idle" };
         public static readonly string[] SessionFileModes = { "perStart", "daily", "monthly", "single", "none" };
 
         class Values
         {
-            /// <summary>Main loop interval</summary>
+            /// <summary>Main loop interval on song select (and everywhere else but playing and the result screen)</summary>
             public int PollIntervalMs = 2000;
-            /// <summary>Main loop interval while playing and on the result screen (catches the result screen sooner)</summary>
+            /// <summary>Main loop interval while playing (how soon the result screen is noticed: the game shows a 2-3 s loading screen first)</summary>
             public int PlayPollIntervalMs = 2000;
+            /// <summary>Main loop interval on the result screen (how soon leaving it is noticed: the monitor stops its screenshot burst)</summary>
+            public int ResultPollIntervalMs = 500; /* Upstream: 2000. Only the state marker is read there */
             /// <summary>Unlock state check on song select: 0 every poll, -1 only when returning to song select, N at most every N seconds</summary>
             public int UnlockCheckSeconds = 0;
             /// <summary>tracker.tsv on song select: always (every poll), onChange (after a play, an unlock change or attach), never</summary>
@@ -77,6 +80,10 @@ namespace Reflux.Api
                         if (p.Value.Type != JTokenType.Integer || !PlayPollIntervals.Contains((int)p.Value)) { return $"playPollIntervalMs must be one of {string.Join(", ", PlayPollIntervals)}"; }
                         v.PlayPollIntervalMs = (int)p.Value;
                         break;
+                    case "resultpollintervalms":
+                        if (p.Value.Type != JTokenType.Integer || !ResultPollIntervals.Contains((int)p.Value)) { return $"resultPollIntervalMs must be one of {string.Join(", ", ResultPollIntervals)}"; }
+                        v.ResultPollIntervalMs = (int)p.Value;
+                        break;
                     case "unlockcheckseconds":
                         if (p.Value.Type != JTokenType.Integer || (int)p.Value < -1 || (int)p.Value > 3600) { return "unlockCheckSeconds must be -1 (on return to song select), 0 (every poll) or 1..3600"; }
                         v.UnlockCheckSeconds = (int)p.Value;
@@ -97,7 +104,7 @@ namespace Reflux.Api
                         v.SessionFile = sf;
                         break;
                     default:
-                        return $"unknown setting {p.Name} (known: pollIntervalMs, playPollIntervalMs, unlockCheckSeconds, trackerTsv, processPriority, sessionFile)";
+                        return $"unknown setting {p.Name} (known: pollIntervalMs, playPollIntervalMs, resultPollIntervalMs, unlockCheckSeconds, trackerTsv, processPriority, sessionFile)";
                 }
             }
             return null;
@@ -123,10 +130,18 @@ namespace Reflux.Api
         #region Main loop
         public static int PollIntervalMs { get { lock (sync) { return values.PollIntervalMs; } } }
 
-        /// <summary>Main loop wait for the current game state: playPollIntervalMs while playing or on the result screen</summary>
+        /// <summary>Main loop wait for the current game state</summary>
         public static int PollIntervalFor(GameState state)
         {
-            lock (sync) { return state == GameState.playing || state == GameState.resultScreen ? values.PlayPollIntervalMs : values.PollIntervalMs; }
+            lock (sync)
+            {
+                return state switch
+                {
+                    GameState.playing => values.PlayPollIntervalMs,
+                    GameState.resultScreen => values.ResultPollIntervalMs,
+                    _ => values.PollIntervalMs,
+                };
+            }
         }
 
         /// <summary>Called by ApiState when the game (re)enters song select, including right after attaching</summary>
@@ -223,6 +238,7 @@ namespace Reflux.Api
                     {
                         pollIntervalMs = PollIntervals,
                         playPollIntervalMs = PlayPollIntervals,
+                        resultPollIntervalMs = ResultPollIntervals,
                         unlockCheckSeconds = "-1 = only when returning to song select, 0 = every poll, 1..3600 = at most every N seconds",
                         trackerTsv = TrackerTsvModes,
                         processPriority = Priorities,

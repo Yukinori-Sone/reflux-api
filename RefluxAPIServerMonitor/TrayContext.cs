@@ -83,7 +83,7 @@ namespace Reflux.ServerMonitor
     sealed class TrayContext : ApplicationContext
     {
         readonly NotifyIcon tray = new NotifyIcon();
-        readonly Timer timer = new Timer { Interval = 1000 }; /* 1 s, 0.3 s while playing and on the result screen: the result screen screenshot starts from this poll */
+        readonly Timer timer = new Timer { Interval = 1000 }; /* 1 s, 0.3 s while playing, 0.1 s on the result screen: the result screen screenshot starts and stops from this poll */
         readonly Dictionary<Snapshot.Level, Icon> icons = new Dictionary<Snapshot.Level, Icon>();
         readonly ToolStripMenuItem miStart = new ToolStripMenuItem("サービスを開始");
         readonly ToolStripMenuItem miStop = new ToolStripMenuItem("サービスを停止");
@@ -205,7 +205,7 @@ namespace Reflux.ServerMonitor
                 var previousGameState = Last?.Status?.GameState;
                 Last = snap;
                 ResultScreenshot.OnPoll(previousGameState, snap);
-            timer.Interval = snap.Status?.GameState == "playing" || snap.Status?.GameState == "resultScreen" ? 300 : 1000; /* Catch the result screen soon after the core does */
+                timer.Interval = snap.Status?.GameState == "resultScreen" ? 100 : snap.Status?.GameState == "playing" ? 300 : 1000; /* Catch the result screen soon after the core does, and leaving it */
                 var level = snap.State;
                 tray.Icon = icons[level];
                 tray.Text = snap.Summary;

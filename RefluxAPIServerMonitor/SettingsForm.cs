@@ -36,7 +36,9 @@ namespace Reflux.ServerMonitor
         readonly CheckBox chkShot = new CheckBox { Text = "リザルト画面でスクリーンショットを撮る", AutoSize = true };
         readonly NumericUpDown numShotMax = new NumericUpDown { Minimum = 3, Maximum = 30, DecimalPlaces = 0, Increment = 1, Width = 70 };
         readonly ComboBox cbShotFormat = Combo(220);
-        readonly ComboBox cbPoll = Combo(260), cbUnlock = Combo(260), cbTracker = Combo(260), cbPriority = Combo(260), cbSession = Combo(260);
+        readonly ComboBox cbShotPngLevel = Combo(300);
+        readonly NumericUpDown numShotJpegQuality = new NumericUpDown { Minimum = 50, Maximum = 100, DecimalPlaces = 0, Increment = 1, Width = 70 };
+        readonly ComboBox cbPoll = Combo(260), cbPlayPoll = Combo(260), cbResultPoll = Combo(260), cbUnlock = Combo(260), cbTracker = Combo(260), cbPriority = Combo(260), cbSession = Combo(260);
         readonly Label lblCore = new Label { AutoSize = true, ForeColor = SystemColors.GrayText };
         readonly Label lblResult = new Label { AutoSize = true, Padding = new Padding(0, 6, 0, 0) };
         readonly Button btnSave = new Button { Text = "保存して反映", AutoSize = true };
@@ -60,6 +62,8 @@ namespace Reflux.ServerMonitor
 
             cbHost.Items.AddRange(new object[] { new Choice("localhost", "このPCだけ（localhost）"), new Choice("+", "LAN の別PCからも（+）") });
             cbPoll.Items.AddRange(new object[] { new Choice(500, "0.5秒"), new Choice(1000, "1秒"), new Choice(2000, "2秒（初期値・本家と同じ）"), new Choice(3000, "3秒"), new Choice(5000, "5秒") });
+            cbPlayPoll.Items.AddRange(new object[] { new Choice(250, "0.25秒"), new Choice(500, "0.5秒"), new Choice(1000, "1秒"), new Choice(2000, "2秒（初期値・本家と同じ）"), new Choice(3000, "3秒"), new Choice(5000, "5秒") });
+            cbResultPoll.Items.AddRange(new object[] { new Choice(100, "0.1秒"), new Choice(250, "0.25秒"), new Choice(500, "0.5秒（初期値）"), new Choice(1000, "1秒"), new Choice(2000, "2秒（本家と同じ）"), new Choice(3000, "3秒"), new Choice(5000, "5秒") });
             cbUnlock.Items.AddRange(new object[] { new Choice(0, "毎回（初期値・本家と同じ）"), new Choice(10, "10秒ごと"), new Choice(30, "30秒ごと"), new Choice(60, "60秒ごと"), new Choice(-1, "選曲画面に戻ったときだけ") });
             cbTracker.Items.AddRange(new object[] { new Choice("always", "毎回書き直す（本家と同じ）"), new Choice("onChange", "変化があったときだけ"), new Choice("never", "書き出さない（初期値）") });
             cbPriority.Items.AddRange(new object[] { new Choice("normal", "通常（初期値・本家と同じ）"), new Choice("belowNormal", "通常以下"), new Choice("idle", "低") });
@@ -93,12 +97,15 @@ namespace Reflux.ServerMonitor
             {
                 foreach (var c in new Control[] { chkLatestJson, chkLatestTxt, chkPlayState, chkMarquee, chkSongInfo }) { g.Controls.Add(c); g.SetColumnSpan(c, 2); }
             }));
-            cbShotFormat.Items.AddRange(new object[] { new Choice(false, "PNG（劣化なし、1枚 2〜4MB）"), new Choice(true, "JPEG（1枚 0.5MB 前後）") });
+            cbShotFormat.Items.AddRange(new object[] { new Choice(false, "PNG（劣化なし）"), new Choice(true, "JPEG（劣化あり、軽い）") });
+            cbShotPngLevel.Items.AddRange(new object[] { new Choice(6, "標準（1枚 1.8MB 前後）"), new Choice(9, "最高（3% ほど小さく、保存に5〜10秒）") });
             root.Controls.Add(Group("リザルト画面のスクリーンショット（このモニターが撮る。保存するとすぐ反映）", g =>
             {
                 g.Controls.Add(chkShot); g.SetColumnSpan(chkShot, 2);
                 Row(g, "撮り続ける最長時間（秒）", numShotMax);
                 Row(g, "形式", cbShotFormat);
+                Row(g, "PNG の圧縮", cbShotPngLevel);
+                Row(g, "JPEG の品質（50〜100）", numShotJpegQuality);
                 var shotNote = new Label { AutoSize = true, ForeColor = SystemColors.GrayText, MaximumSize = new Size(520, 0),
                     Text = "リザルト画面が出たら撮り続け、左の成績パネルの演出が止まった1枚を残します（止まらないまま画面を抜けたときは、抜ける直前の1枚）。" +
                            "Reflux のフォルダの screenshots に、プレーの記録と同じ日時・曲・譜面の名前で保存します。Score Manager のプレー履歴から開けます。" };
@@ -106,7 +113,9 @@ namespace Reflux.ServerMonitor
             }));
             root.Controls.Add(Group("コアの動作設定（API で変更。保存するとすぐ反映）", g =>
             {
-                Row(g, "監視間隔", cbPoll);
+                Row(g, "監視間隔（選曲画面）", cbPoll);
+                Row(g, "監視間隔（プレー中）", cbPlayPoll);
+                Row(g, "監視間隔（リザルト画面）", cbResultPoll);
                 Row(g, "解禁データの確認", cbUnlock);
                 Row(g, "tracker.tsv の書き出し", cbTracker);
                 Row(g, "Reflux の優先度", cbPriority);
@@ -189,6 +198,8 @@ namespace Reflux.ServerMonitor
             chkShot.Checked = ScreenshotSettings.Enabled;
             numShotMax.Value = Math.Max(3, Math.Min(30, ScreenshotSettings.MaxBurstMs / 1000));
             Select(cbShotFormat, ScreenshotSettings.Jpeg);
+            Select(cbShotPngLevel, ScreenshotSettings.PngLevel);
+            numShotJpegQuality.Value = ScreenshotSettings.JpegQuality;
             chkApi.Checked = loadedConfig.ApiEnabled;
             Select(cbHost, loadedConfig.Host);
             numPort.Value = Math.Max(1, Math.Min(65535, loadedConfig.Port));
@@ -200,7 +211,7 @@ namespace Reflux.ServerMonitor
             chkSongInfo.Checked = loadedConfig.FullSongInfo;
 
             loadedCore = null;
-            foreach (var cb in new[] { cbPoll, cbUnlock, cbTracker, cbPriority, cbSession }) { cb.Enabled = false; }
+            foreach (var cb in new[] { cbPoll, cbPlayPoll, cbResultPoll, cbUnlock, cbTracker, cbPriority, cbSession }) { cb.Enabled = false; }
             lblCore.Text = "コアから読み込み中...";
             try
             {
@@ -208,11 +219,15 @@ namespace Reflux.ServerMonitor
                 var res = await api.SettingsAsync();
                 loadedCore = res.Values;
                 Select(cbPoll, loadedCore.PollIntervalMs);
+                if (loadedCore.PlayPollIntervalMs.HasValue) { Select(cbPlayPoll, loadedCore.PlayPollIntervalMs.Value); }
+                if (loadedCore.ResultPollIntervalMs.HasValue) { Select(cbResultPoll, loadedCore.ResultPollIntervalMs.Value); }
                 Select(cbUnlock, loadedCore.UnlockCheckSeconds);
                 Select(cbTracker, loadedCore.TrackerTsv);
                 Select(cbPriority, loadedCore.ProcessPriority);
                 Select(cbSession, loadedCore.SessionFile ?? "perStart");
                 foreach (var cb in new[] { cbPoll, cbUnlock, cbTracker, cbPriority, cbSession }) { cb.Enabled = true; }
+                cbPlayPoll.Enabled = loadedCore.PlayPollIntervalMs.HasValue; /* Older cores don't have them */
+                cbResultPoll.Enabled = loadedCore.ResultPollIntervalMs.HasValue;
                 lblCore.Text = "保存先: Reflux のフォルダの coresettings.json";
             }
             catch (Exception e)
@@ -231,11 +246,16 @@ namespace Reflux.ServerMonitor
 
                 bool shotJpeg = Value(cbShotFormat) is bool j && j;
                 int shotMax = (int)numShotMax.Value * 1000;
-                if (chkShot.Checked != ScreenshotSettings.Enabled || shotMax != ScreenshotSettings.MaxBurstMs || shotJpeg != ScreenshotSettings.Jpeg)
+                int shotLevel = Value(cbShotPngLevel) is int lv ? lv : 6;
+                int shotQuality = (int)numShotJpegQuality.Value;
+                if (chkShot.Checked != ScreenshotSettings.Enabled || shotMax != ScreenshotSettings.MaxBurstMs || shotJpeg != ScreenshotSettings.Jpeg ||
+                    shotLevel != ScreenshotSettings.PngLevel || shotQuality != ScreenshotSettings.JpegQuality)
                 {
                     ScreenshotSettings.Enabled = chkShot.Checked;
                     ScreenshotSettings.MaxBurstMs = shotMax;
                     ScreenshotSettings.Jpeg = shotJpeg;
+                    ScreenshotSettings.PngLevel = shotLevel;
+                    ScreenshotSettings.JpegQuality = shotQuality;
                     messages.Add("スクリーンショットの設定を保存しました");
                 }
 
@@ -245,12 +265,15 @@ namespace Reflux.ServerMonitor
                     var core = new CoreSettingsValues
                     {
                         PollIntervalMs = (int)Value(cbPoll),
+                        PlayPollIntervalMs = cbPlayPoll.Enabled ? Value(cbPlayPoll) as int? : null,
+                        ResultPollIntervalMs = cbResultPoll.Enabled ? Value(cbResultPoll) as int? : null,
                         UnlockCheckSeconds = (int)Value(cbUnlock),
                         TrackerTsv = (string)Value(cbTracker),
                         ProcessPriority = (string)Value(cbPriority),
                         SessionFile = (string)Value(cbSession),
                     };
-                    if (core.PollIntervalMs != loadedCore.PollIntervalMs || core.UnlockCheckSeconds != loadedCore.UnlockCheckSeconds ||
+                    if (core.PollIntervalMs != loadedCore.PollIntervalMs || core.PlayPollIntervalMs != loadedCore.PlayPollIntervalMs ||
+                        core.ResultPollIntervalMs != loadedCore.ResultPollIntervalMs || core.UnlockCheckSeconds != loadedCore.UnlockCheckSeconds ||
                         core.TrackerTsv != loadedCore.TrackerTsv || core.ProcessPriority != loadedCore.ProcessPriority || core.SessionFile != loadedCore.SessionFile)
                     {
                         using var api = new CoreApi(loadedConfig);

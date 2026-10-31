@@ -34,6 +34,10 @@ namespace Reflux.ServerMonitor
         /// <summary>Longest burst on the result screen before a frame is picked anyway, milliseconds</summary>
         public static int MaxBurstMs { get => (int)Get("ScreenshotMaxBurstMs", 15000); set => Set("ScreenshotMaxBurstMs", value); }
         public static bool Jpeg { get => (int)Get("ScreenshotJpeg", 0) != 0; set => Set("ScreenshotJpeg", value ? 1 : 0); }
+        /// <summary>zlib level of the PNG: 6 (standard, 1.8 MB in 1 s) or 9 (3 % smaller, 6 s on the dev PC)</summary>
+        public static int PngLevel { get => (int)Get("ScreenshotPngLevel", 6) >= 9 ? 9 : 6; set => Set("ScreenshotPngLevel", value); }
+        /// <summary>JPEG quality, 50-100</summary>
+        public static int JpegQuality { get => Math.Max(50, Math.Min(100, (int)Get("ScreenshotJpegQuality", 92))); set => Set("ScreenshotJpegQuality", value); }
         /// <summary>Tuning aid (registry only): keep every frame of the burst in screenshots\burst\ with the differences in capture.log</summary>
         public static bool KeepBurst => (int)Get("ScreenshotKeepBurst", 0) != 0;
     }
@@ -47,9 +51,9 @@ namespace Reflux.ServerMonitor
     /// game shows a black loading screen for 2-3 s, then the result screen draws itself with an animation (clear type, FAILED /
     /// CLEAR over the middle) for 1.5-2 s and stays still apart from the background. Leaving it brings a blue INFINITAS screen
     /// that the core still reports as the result screen for a moment. How long each part takes varies, so instead of waiting a
-    /// fixed time the monitor takes a frame every 0.3 s and keeps:
-    ///  - the first frame after the score panel on the left and the middle both stopped changing (two frames in a row); the
-    ///    background keeps moving all the time, so only those parts are compared
+    /// fixed time the monitor takes a frame every 0.15 s, compares it with the frame of 0.3 s before and keeps:
+    ///  - the first frame after the score panel on the left and the middle both stopped changing for 0.3 s (thresholds tuned on
+    ///    frames 0.3 s apart); the background keeps moving all the time, so only those parts are compared
     ///  - when the player left before that: the last frame where the panel was still, else the result frame that changed least
     /// A frame counts as the result screen when enough of the panel area is the gray of its boxes (0.14-0.29 on result screens,
     /// also with bright CLEAR backgrounds; 0.09 or less on the loading screen and the blue screen after it). The first frame that
@@ -63,7 +67,11 @@ namespace Reflux.ServerMonitor
         static volatile string gameState;
         static bool busy;
 
-        const int FrameIntervalMs = 300;
+        const int FrameIntervalMs = 150;
+        /// <summary>How far back the frame compared with is (the thresholds were tuned on frames this far apart)</summary>
+        const int CompareMs = 300;
+        /// <summary>How long panel and middle have to stay still before a frame is picked</summary>
+        const int StillForMs = 300;
         /// <summary>Score panel (clear type .. judges) on a 1920x1080 result screen, scaled for other sizes</summary>
         static readonly Rectangle Panel = new Rectangle(0, 380, 560, 630);
         /// <summary>Middle of the screen where FAILED / CLEAR is shown during the animation</summary>
@@ -74,8 +82,6 @@ namespace Reflux.ServerMonitor
         const double StillBelow = 3.0;
         /// <summary>Panel difference above which the game has left the result screen, once the panel was still</summary>
         const double LeftAbove = 30;
-        /// <summary>Frames in a row with panel and middle still before one is picked</summary>
-        const int StillFrames = 2;
 
         /// <summary>File name (without extension) for a play: 20261015T063424Z_28054_DPA</summary>
         public static string KeyOf(Dictionary<string, string> play)
@@ -137,10 +143,23 @@ namespace Reflux.ServerMonitor
             Directory.CreateDirectory(Folder);
             var jpeg = ScreenshotSettings.Jpeg;
             var path = Path.Combine(Folder, key + (jpeg ? ".jpg" : ".png"));
-            if (jpeg) { SaveJpeg(bmp, path, 92); }
-            else { bmp.Save(path, ImageFormat.Png); }
+            var sw = Stopwatch.StartNew();
+            var quality = ScreenshotSettings.JpegQuality;
+            var level = ScreenshotSettings.PngLevel;
+            var tmp = path + ".tmp"; /* The core lists only finished files */
+            var thread = Thread.CurrentThread;
+            var priority = thread.Priority;
+            thread.Priority = ThreadPriority.BelowNormal; /* Don't compete with the game on the next song select */
+            try
+            {
+                if (jpeg) { SaveJpeg(bmp, tmp, quality); }
+                else { PngWriter.Save(bmp, tmp, level); }
+            }
+            finally { thread.Priority = priority; }
+            if (File.Exists(path)) { File.Delete(path); }
+            File.Move(tmp, path);
             LastSaved = path;
-            Log($"{Path.GetFileName(path)} {bmp.Width}x{bmp.Height} brightness {Brightness(bmp):0.0}");
+            Log($"{Path.GetFileName(path)} {bmp.Width}x{bmp.Height} {(jpeg ? "quality " + quality : "level " + level)} {new FileInfo(path).Length / 1024}KB in {sw.ElapsedMilliseconds}ms, brightness {Brightness(bmp):0.0}");
         }
 
         /// <summary>The screen INFINITAS is on (the primary screen when its window isn't found)</summary>
@@ -179,9 +198,9 @@ namespace Reflux.ServerMonitor
             Bitmap picked = null, lastStill = null, calmest = null, last = null;
             string pickedHow = null, lastStillHow = null, calmestHow = null, end = "time up";
             double calmestDiff = double.MaxValue;
-            byte[] prevPanel = null, prevMiddle = null;
+            var history = new List<(int ms, byte[] panel, byte[] middle)>(); /* Result frames of the last CompareMs, for the comparison */
             bool panelWasStill = false;
-            int stillRun = 0, n = 0;
+            int stillSince = -1, n = 0;
             using (dd)
             {
                 while (DateTime.UtcNow - start < max)
@@ -195,8 +214,9 @@ namespace Reflux.ServerMonitor
                     var middle = Sample(bmp, Middle);
                     var gray = GrayShare(bmp, Panel);
                     bool isResult = gray >= ResultGrayShare;
-                    double dPanel = prevPanel == null ? -1 : Diff(prevPanel, panel);
-                    double dMiddle = prevMiddle == null ? -1 : Diff(prevMiddle, middle);
+                    int refAt = history.FindLastIndex(h => h.ms <= ms - CompareMs + FrameIntervalMs / 3);
+                    double dPanel = refAt < 0 ? -1 : Diff(history[refAt].panel, panel);
+                    double dMiddle = refAt < 0 ? -1 : Diff(history[refAt].middle, middle);
                     if (keep)
                     {
                         SaveJpeg(bmp, Path.Combine(burstDir, $"{n:D2}_{ms:D5}.jpg"), 85);
@@ -211,7 +231,7 @@ namespace Reflux.ServerMonitor
                     }
                     if (!isResult)
                     {
-                        prevPanel = prevMiddle = null; /* Loading screen: the first result frame has nothing to compare with */
+                        history.Clear(); /* Loading screen: the first result frame has nothing to compare with */
                         bmp.Dispose();
                     }
                     else if (panelWasStill && dPanel > LeftAbove)
@@ -237,14 +257,17 @@ namespace Reflux.ServerMonitor
                             calmest = (Bitmap)bmp.Clone();
                             calmestHow = $"frame {n - 1} at +{ms}ms, panel change {dPanel:0.00}";
                         }
-                        stillRun = panelStill && dMiddle >= 0 && dMiddle < StillBelow ? stillRun + 1 : 0;
-                        if (picked == null && stillRun >= StillFrames)
+                        /* Still since the frame compared with: the old rule (two still frames 0.3 s apart) is still for 0.3 s here */
+                        if (panelStill && dMiddle >= 0 && dMiddle < StillBelow) { if (stillSince < 0) { stillSince = history[refAt].ms; } }
+                        else { stillSince = -1; }
+                        if (picked == null && stillSince >= 0 && ms - stillSince >= CompareMs + StillForMs - FrameIntervalMs / 3)
                         {
                             picked = (Bitmap)bmp.Clone();
-                            pickedHow = $"frame {n - 1} at +{ms}ms, still for {stillRun} frames";
+                            pickedHow = $"frame {n - 1} at +{ms}ms, still for {ms - stillSince}ms";
                             if (!keep) { bmp.Dispose(); break; } /* The burst goes on only to keep frames for tuning */
                         }
-                        prevPanel = panel; prevMiddle = middle;
+                        history.Add((ms, panel, middle));
+                        history.RemoveAll(h => h.ms < ms - CompareMs - FrameIntervalMs);
                         last?.Dispose();
                         last = bmp;
                     }
