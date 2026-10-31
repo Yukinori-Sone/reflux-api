@@ -10,6 +10,7 @@
     <UseWindowsForms>true</UseWindowsForms>
     <LangVersion>latest</LangVersion>
     <Nullable>disable</Nullable>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <RootNamespace>Reflux.ServerMonitor</RootNamespace>
     <AssemblyName>RefluxAPIServerMonitor</AssemblyName>
     <Version>0.1.0</Version>
@@ -22,6 +23,8 @@
 
   <ItemGroup>
     <PackageReference Include="Microsoft.NETFramework.ReferenceAssemblies" Version="1.0.3" PrivateAssets="all" />
+    <PackageReference Include="SharpDX.Direct3D11" Version="4.2.0" />
+    <PackageReference Include="SharpDX.DXGI" Version="4.2.0" />
   </ItemGroup>
 
   <ItemGroup>
@@ -33,5 +36,16 @@
   <ItemGroup>
     <EmbeddedResource Include="..\Reflux\Resources\icon.ico" LogicalName="icon.ico" />
   </ItemGroup>
+
+  <!--
+    SharpDX (Desktop Duplication for the result screenshots) goes inside the exe, so the monitor stays a single file next to
+    Reflux.exe. Program.LoadEmbeddedAssembly loads it from the resources.
+  -->
+  <Target Name="EmbedReferencedAssemblies" AfterTargets="ResolveReferences">
+    <ItemGroup>
+      <EmbeddedResource Include="@(ReferenceCopyLocalPaths)" Condition="'%(ReferenceCopyLocalPaths.Extension)' == '.dll'" LogicalName="lib.%(ReferenceCopyLocalPaths.Filename)%(ReferenceCopyLocalPaths.Extension)" />
+      <ReferenceCopyLocalPaths Remove="@(ReferenceCopyLocalPaths)" Condition="'%(ReferenceCopyLocalPaths.Extension)' == '.dll' Or '%(ReferenceCopyLocalPaths.Extension)' == '.xml'" />
+    </ItemGroup>
+  </Target>
 
 </Project>

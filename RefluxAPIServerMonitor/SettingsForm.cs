@@ -33,6 +33,9 @@ namespace Reflux.ServerMonitor
         readonly CheckBox chkPlayState = new CheckBox { Text = "playstate.txt", AutoSize = true };
         readonly CheckBox chkMarquee = new CheckBox { Text = "marquee.txt", AutoSize = true };
         readonly CheckBox chkSongInfo = new CheckBox { Text = "title.txt・artist.txt など（曲情報）", AutoSize = true };
+        readonly CheckBox chkShot = new CheckBox { Text = "リザルト画面でスクリーンショットを撮る", AutoSize = true };
+        readonly NumericUpDown numShotMax = new NumericUpDown { Minimum = 3, Maximum = 30, DecimalPlaces = 0, Increment = 1, Width = 70 };
+        readonly ComboBox cbShotFormat = Combo(220);
         readonly ComboBox cbPoll = Combo(260), cbUnlock = Combo(260), cbTracker = Combo(260), cbPriority = Combo(260), cbSession = Combo(260);
         readonly Label lblCore = new Label { AutoSize = true, ForeColor = SystemColors.GrayText };
         readonly Label lblResult = new Label { AutoSize = true, Padding = new Padding(0, 6, 0, 0) };
@@ -89,6 +92,17 @@ namespace Reflux.ServerMonitor
             root.Controls.Add(Group("配信用・最新プレーのファイル出力（config.ini。保存するとサービスを再起動して反映）", g =>
             {
                 foreach (var c in new Control[] { chkLatestJson, chkLatestTxt, chkPlayState, chkMarquee, chkSongInfo }) { g.Controls.Add(c); g.SetColumnSpan(c, 2); }
+            }));
+            cbShotFormat.Items.AddRange(new object[] { new Choice(false, "PNG（劣化なし、1枚 2〜4MB）"), new Choice(true, "JPEG（1枚 0.5MB 前後）") });
+            root.Controls.Add(Group("リザルト画面のスクリーンショット（このモニターが撮る。保存するとすぐ反映）", g =>
+            {
+                g.Controls.Add(chkShot); g.SetColumnSpan(chkShot, 2);
+                Row(g, "撮り続ける最長時間（秒）", numShotMax);
+                Row(g, "形式", cbShotFormat);
+                var shotNote = new Label { AutoSize = true, ForeColor = SystemColors.GrayText, MaximumSize = new Size(520, 0),
+                    Text = "リザルト画面が出たら撮り続け、左の成績パネルの演出が止まった1枚を残します（止まらないまま画面を抜けたときは、抜ける直前の1枚）。" +
+                           "Reflux のフォルダの screenshots に、プレーの記録と同じ日時・曲・譜面の名前で保存します。Score Manager のプレー履歴から開けます。" };
+                g.Controls.Add(shotNote); g.SetColumnSpan(shotNote, 2);
             }));
             root.Controls.Add(Group("コアの動作設定（API で変更。保存するとすぐ反映）", g =>
             {
@@ -172,6 +186,9 @@ namespace Reflux.ServerMonitor
                 btnSave.Enabled = false;
                 return;
             }
+            chkShot.Checked = ScreenshotSettings.Enabled;
+            numShotMax.Value = Math.Max(3, Math.Min(30, ScreenshotSettings.MaxBurstMs / 1000));
+            Select(cbShotFormat, ScreenshotSettings.Jpeg);
             chkApi.Checked = loadedConfig.ApiEnabled;
             Select(cbHost, loadedConfig.Host);
             numPort.Value = Math.Max(1, Math.Min(65535, loadedConfig.Port));
@@ -211,6 +228,16 @@ namespace Reflux.ServerMonitor
             try
             {
                 var messages = new System.Collections.Generic.List<string>();
+
+                bool shotJpeg = Value(cbShotFormat) is bool j && j;
+                int shotMax = (int)numShotMax.Value * 1000;
+                if (chkShot.Checked != ScreenshotSettings.Enabled || shotMax != ScreenshotSettings.MaxBurstMs || shotJpeg != ScreenshotSettings.Jpeg)
+                {
+                    ScreenshotSettings.Enabled = chkShot.Checked;
+                    ScreenshotSettings.MaxBurstMs = shotMax;
+                    ScreenshotSettings.Jpeg = shotJpeg;
+                    messages.Add("スクリーンショットの設定を保存しました");
+                }
 
                 /* Core settings first: the API still answers on the current port */
                 if (loadedCore != null)

@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using System.Reflection;
 using System.Threading;
 using System.Windows.Forms;
 
@@ -14,6 +15,7 @@ namespace Reflux.ServerMonitor
         [STAThread]
         static int Main(string[] args)
         {
+            AppDomain.CurrentDomain.AssemblyResolve += LoadEmbeddedAssembly;
             if (args.Length >= 2 && args[0] == "--service")
             {
                 try { ServiceControl.Do(args[1]); return 0; }
@@ -35,6 +37,18 @@ namespace Reflux.ServerMonitor
             if (Array.IndexOf(args, "--settings") >= 0) { context.OpenSettings(); }
             Application.Run(context);
             return 0;
+        }
+
+        /// <summary>Libraries built into the exe (resource lib.&lt;name&gt;.dll, see the csproj)</summary>
+        static Assembly LoadEmbeddedAssembly(object sender, ResolveEventArgs e)
+        {
+            var name = "lib." + new AssemblyName(e.Name).Name + ".dll";
+            using var s = typeof(Program).Assembly.GetManifestResourceStream(name);
+            if (s == null) { return null; }
+            var bytes = new byte[s.Length];
+            int read = 0;
+            while (read < bytes.Length) { read += s.Read(bytes, read, bytes.Length - read); }
+            return Assembly.Load(bytes);
         }
     }
 }

@@ -39,6 +39,8 @@
 | `GET /api/latest` | 直前のプレー記録（無ければ `null`） |
 | `GET /api/session` | 今回の Reflux 起動以降のプレー記録（`latest` と同じ形の配列） |
 | `GET /api/plays` | これまでの全プレー記録（`plays.jsonl`）。下記 |
+| `GET /api/screenshots` | リザルト画面のスクリーンショットの一覧。下記 |
+| `GET /api/screenshot?key=...` | スクリーンショット1枚（`image/png` か `image/jpeg`）。下記 |
 | `GET /api/clearrates` | 全国のクリアレート（譜面ごと）。下記 |
 | `GET /api/rivals` | ゲームに登録したライバル（SP・DP 別に最大5人）。下記 |
 | `GET /api/rivals/scores` | ライバル全員の譜面ごとの EX スコア・ランプ。下記 |
@@ -88,6 +90,14 @@
 - `misscount` はミスカウントが有効なプレーだけ（途中終了などは `null`）。曲情報だけで判定の無い記録（プレーデータが読めなかったとき）は入れない
 - クライアントは `sessionPlays` が変わるたびに、手元の最新の `timestamp` を `since` にして差分を取る
 
+### `GET /api/screenshots` / `GET /api/screenshot?key=...`
+
+リザルト画面のスクリーンショット。撮るのはコアではなくタスクトレイのモニター（`RefluxAPIServerMonitor.exe`、ユーザーのセッションで動く。サービスのコアには画面が無い）で、実行フォルダの `screenshots/` に保存する。コアはそのフォルダを返すだけ。
+
+- ファイル名（拡張子を除いた部分が `key`）: `<プレー日時 UTC yyyyMMddTHHmmssZ>_<曲ID 5桁>_<譜面>`（例 `20261015T155011Z_23083_DPA`）。日時・曲・譜面は `/api/plays` の `timestamp`・`songid`・`diff` と同じなので、プレーと1対1で結びつく。プレーが記録されなかったときは `<撮った日時>_unrecorded`
+- `GET /api/screenshots`: `[{key, file, size, savedAt}]`
+- `GET /api/screenshot?key=...`: 画像そのもの。`key` の形が違えば `400`、無ければ `404`
+
 ### `GET /api/rivals` / `GET /api/rivals/scores`
 
 - rivals: `[{side, index, infinitasId, djName, prefId, gradeSp, gradeDp, charts}]`。`side` は `SP` / `DP`（ゲームでは SP と DP のライバルを別々に5人ずつ登録する。同じ人のこともある）、`index` は登録順（0〜）。`prefId`（都道府県、[INFINITAS動作.md](INFINITAS動作.md) の表）と `gradeSp` / `gradeDp`（段位、-1 = なし）は推定。`charts` はスコアのある譜面数
@@ -100,7 +110,8 @@
 
 | キー | 値 | 初期値 | 内容 |
 |---|---|---|---|
-| `pollIntervalMs` | 500 / 1000 / 2000 / 3000 / 5000 | 2000 | メインループの間隔（ゲームの状態を見る間隔）。プレー中に読むのは4バイトだけ |
+| `pollIntervalMs` | 500 / 1000 / 2000 / 3000 / 5000 | 2000 | メインループの間隔（ゲームの状態を見る間隔）。プレー中とリザルト画面では次の `playPollIntervalMs` を使う |
+| `playPollIntervalMs` | 250 / 500 / 1000 / 2000 / 3000 / 5000 | 2000 | プレー中とリザルト画面でのメインループの間隔。読むのは状態の目印の数バイトだけなので短くしても負荷はほぼ無い。短くするとリザルトの記録・モニターのスクリーンショットが早くなる |
 | `unlockCheckSeconds` | -1 / 0 / 1〜3600 | 0 | 選曲画面で解禁状態を読み直す頻度。0 = 毎回、-1 = 選曲画面に戻ったときだけ、N = 最短 N 秒ごと（選曲画面に戻ったときは必ず読む） |
 | `trackerTsv` | `always` / `onChange` / `never` | `never`（本家は `always`） | 選曲画面での `tracker.tsv` の書き出し。`onChange` はプレーの記録後・解禁状態の変化時・アタッチ後だけ書く |
 | `processPriority` | `normal` / `belowNormal` / `idle` | `normal` | Reflux 自身のプロセス優先度 |

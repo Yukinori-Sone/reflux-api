@@ -85,7 +85,7 @@ namespace Reflux.Api
                 {
                     case "":
                     case "/api":
-                        Write(ctx, 200, "{\"endpoints\":[\"GET /api/status\",\"GET /api/songs\",\"GET /api/charts\",\"GET /api/scores\",\"GET /api/latest\",\"GET /api/session\",\"GET /api/clearrates\",\"GET /api/rivals\",\"GET /api/rivals/scores\",\"GET /api/plays?since=&limit=&infinitasId=\",\"GET /api/masters\",\"POST /api/attach/retry\"," +
+                        Write(ctx, 200, "{\"endpoints\":[\"GET /api/status\",\"GET /api/songs\",\"GET /api/charts\",\"GET /api/scores\",\"GET /api/latest\",\"GET /api/session\",\"GET /api/clearrates\",\"GET /api/rivals\",\"GET /api/rivals/scores\",\"GET /api/plays?since=&limit=&infinitasId=\",\"GET /api/masters\",\"GET /api/screenshots\",\"GET /api/screenshot?key=\",\"POST /api/attach/retry\"," +
                             "\"GET /api/offsets\",\"PUT /api/offsets\",\"GET /api/memory/info\",\"GET /api/memory?address=&length=&format=hex|bin&encoding=sjis\"," +
                             "\"GET /api/memory/search?start=&length=&hex=|text=&encoding=|int32=|int64=&max=\"," +
                             "\"GET /api/settings\",\"PUT /api/settings\",\"GET /api/layout\",\"PUT /api/layout\",\"GET|POST /api/layout/preview?start=&count=\"]}");
@@ -94,6 +94,8 @@ namespace Reflux.Api
                     case "/api/settings": Write(ctx, 200, CoreSettings.GetJson()); return;
                     case "/api/plays": Plays(ctx); return;
                     case "/api/masters": Write(ctx, 200, Masters.GetJson()); return;
+                    case "/api/screenshots": Write(ctx, 200, Screenshots.ListJson()); return;
+                    case "/api/screenshot": Screenshots.Get(ctx); return;
                     case "/api/layout/preview": Layout.Preview(ctx, null); return;
                     case "/api/status": Write(ctx, 200, ApiState.StatusJson()); return;
                     case "/api/songs": Write(ctx, 200, ApiState.SongsJson()); return;

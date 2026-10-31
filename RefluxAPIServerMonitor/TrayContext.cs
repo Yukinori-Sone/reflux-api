@@ -83,7 +83,7 @@ namespace Reflux.ServerMonitor
     sealed class TrayContext : ApplicationContext
     {
         readonly NotifyIcon tray = new NotifyIcon();
-        readonly Timer timer = new Timer { Interval = 3000 };
+        readonly Timer timer = new Timer { Interval = 1000 }; /* 1 s, 0.3 s while playing and on the result screen: the result screen screenshot starts from this poll */
         readonly Dictionary<Snapshot.Level, Icon> icons = new Dictionary<Snapshot.Level, Icon>();
         readonly ToolStripMenuItem miStart = new ToolStripMenuItem("サービスを開始");
         readonly ToolStripMenuItem miStop = new ToolStripMenuItem("サービスを停止");
@@ -119,6 +119,11 @@ namespace Reflux.ServerMonitor
             miRestart.Click += async (_, __) => await ControlService("restart");
             menu.Items.AddRange(new ToolStripItem[] { miStart, miStop, miRestart, new ToolStripSeparator() });
             menu.Items.Add(new ToolStripMenuItem("Reflux のフォルダを開く", null, (_, __) => Open(RefluxFolder.Dir)));
+            menu.Items.Add(new ToolStripMenuItem("スクリーンショットのフォルダを開く", null, (_, __) =>
+            {
+                Directory.CreateDirectory(ResultScreenshot.Folder);
+                Open(ResultScreenshot.Folder);
+            }));
             menu.Items.Add(new ToolStripMenuItem("log.txt を開く", null, (_, __) =>
             {
                 if (File.Exists(RefluxFolder.LogPath)) { Open(RefluxFolder.LogPath); }
@@ -197,7 +202,10 @@ namespace Reflux.ServerMonitor
                     }
                     return s;
                 });
+                var previousGameState = Last?.Status?.GameState;
                 Last = snap;
+                ResultScreenshot.OnPoll(previousGameState, snap);
+            timer.Interval = snap.Status?.GameState == "playing" || snap.Status?.GameState == "resultScreen" ? 300 : 1000; /* Catch the result screen soon after the core does */
                 var level = snap.State;
                 tray.Icon = icons[level];
                 tray.Text = snap.Summary;

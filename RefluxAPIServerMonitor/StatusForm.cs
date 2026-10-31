@@ -15,7 +15,7 @@ namespace Reflux.ServerMonitor
         readonly Label logTitle = new Label { Text = "log.txt の最後（エラーの記録）", Dock = DockStyle.Top, AutoSize = true, Padding = new Padding(10, 6, 0, 4) };
         static readonly string[] Rows =
         {
-            "サービス", "Reflux", "INFINITAS", "ゲーム", "プレー中の譜面", "INFINITAS ID", "バージョン", "API", "今回の記録", "直近のプレー", "メッセージ", "最終確認",
+            "サービス", "Reflux", "INFINITAS", "ゲーム", "プレー中の譜面", "INFINITAS ID", "バージョン", "API", "今回の記録", "直近のプレー", "スクリーンショット", "メッセージ", "最終確認",
         };
 
         public StatusForm()
@@ -71,6 +71,7 @@ namespace Reflux.ServerMonitor
             Set("今回の記録", st == null ? null : $"{st.SessionPlays} プレー（Reflux の起動以降）");
             string L(string k) => s.Latest != null && s.Latest.TryGetValue(k, out var v) ? v : null;
             Set("直近のプレー", s.Latest == null ? null : $"{L("title")} [{L("diff")}]  {L("lamp")}  EX {L("exscore")}  {(L("timestamp") is string t && DateTime.TryParse(t, out var dt) ? dt.ToLocalTime().ToString("MM/dd HH:mm") : "")}");
+            Set("スクリーンショット", !ScreenshotSettings.Enabled ? "撮らない" : ResultScreenshot.LastSaved == null ? "リザルト画面で撮る（まだ撮っていない）" : "最後: " + System.IO.Path.GetFileName(ResultScreenshot.LastSaved));
             Set("メッセージ", st?.Message, st?.Message != null ? red : (Color?)null);
             Set("最終確認", s.At.ToString("HH:mm:ss"));
             if (Visible)
