@@ -86,6 +86,7 @@ namespace Reflux.Api
         static CachedJson rivalScores = new CachedJson(new RivalScoreDto[0]);
         static string rivalsKey = "";
         static bool rivalsLoaded;
+        static DateTime readyAt, lastRivalTry;
 
         public static readonly JsonSerializerSettings JsonSettings = new JsonSerializerSettings
         {
@@ -140,7 +141,7 @@ namespace Reflux.Api
         {
             lock (sync) { status.PlayStateDetection = playStateDetection; }
             CoreSettings.MarkTrackerChanged(); /* Write tracker.tsv once after attaching, whatever the mode */
-            lock (sync) { rivalsLoaded = false; } /* Read rivals again after (re)attaching */
+            lock (sync) { rivalsLoaded = false; readyAt = DateTime.UtcNow; } /* Read rivals again after (re)attaching */
             var infinitasId = Player.ReadInfinitasId(); /* The pass can be switched between INFINITAS starts */
             lock (sync) { status.InfinitasId = infinitasId; }
             if (infinitasId != null) { PlayLog.ImportSessionsOnce(infinitasId); }
@@ -185,6 +186,21 @@ namespace Reflux.Api
                 if (!loaded) { Rivals.Refresh(); } /* The game fetches rivals only at startup, retry until both sides were read */
             }
         }
+        /// <summary>
+        /// Main loop, every song select poll: retry the rivals every 5 s until both sides were read. Reflux can become ready while
+        /// the game is still receiving them (seen on 2026101400: ready 2 s before the rivals arrived, during NOW LOADING)
+        /// </summary>
+        public static void RetryRivals()
+        {
+            lock (sync)
+            {
+                if (rivalsLoaded || (DateTime.UtcNow - lastRivalTry).TotalSeconds < 5) { return; }
+                lastRivalTry = DateTime.UtcNow;
+            }
+            Rivals.Refresh();
+        }
+        /// <summary>No rivals in the game's data counts as read only a while after attaching (players without rivals)</summary>
+        public static bool AcceptNoRivals { get { lock (sync) { return (DateTime.UtcNow - readyAt).TotalMinutes >= 2; } } }
         public static int? ProcessId { get { lock (sync) { return status.ProcessId; } } }
         /// <summary>Publish rivals and their scores, the revision only changes when something changed</summary>
         public static void PublishRivals(List<RivalDto> list, List<RivalScoreDto> scores, bool complete)

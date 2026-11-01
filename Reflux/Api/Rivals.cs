@@ -42,7 +42,7 @@ namespace Reflux.Api
     ///   [len]["C" + 12 digits][len][DJ NAME][len][shop name][pref][grade sp][grade dp]   (strings NUL terminated, padded to 4)
     ///   records: [song id][0x14][EX score x5 (B N H A L)][0x14][lamp x5]   (52 bytes each, as long as the 0x14 markers match)
     ///   then other data (recent plays, comments) up to the next rival's id
-    /// Read once when Reflux becomes ready (the game only fetches rivals at startup).
+    /// Read when Reflux becomes ready (the game only fetches rivals at startup), and retried until both sides were read.
     /// </summary>
     static class Rivals
     {
@@ -181,6 +181,7 @@ namespace Reflux.Api
                     rivals.AddRange(parsed.rivals);
                     scores.AddRange(parsed.scores);
                 }
+                if (rivals.Count == 0 && !ApiState.AcceptNoRivals) { complete = false; } /* The game may still be receiving them */
                 ApiState.PublishRivals(rivals, scores, complete);
             }
             catch (Exception e)

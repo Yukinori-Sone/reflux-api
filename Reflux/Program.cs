@@ -530,6 +530,7 @@ namespace Reflux
 
                         if (state == GameState.songSelect)
                         {
+                            ApiState.RetryRivals();
                             /* Api.CoreSettings: how often to check unlocks and write tracker.tsv (defaults: every poll, as upstream) */
                             var newUnlocks = Api.CoreSettings.ShouldCheckUnlocks() ? Utils.UpdateUnlockStates() : new Dictionary<string, UnlockData>();
                             if (Config.Save_local && Api.CoreSettings.ShouldWriteTrackerTsv(newUnlocks.Count > 0))
