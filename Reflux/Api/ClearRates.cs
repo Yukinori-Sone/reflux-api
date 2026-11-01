@@ -90,9 +90,11 @@ namespace Reflux.Api
                         Console.WriteLine($"[API] Clear rates not available (SP: {spError ?? "ok"}, DP: {dpError ?? "ok"}). Check GET /api/layout/preview?struct=clearRate");
                         warned = true;
                     }
+                    ApiState.SetDataWarning("clearRates", true);
                     return;
                 }
                 warned = false;
+                ApiState.SetDataWarning("clearRates", false);
                 ApiState.PublishClearRates(ToDtos(sp, "SP").Concat(ToDtos(dp, "DP")).OrderBy(d => d.SongId).ThenBy(d => d.Difficulty).ToList());
             }
             catch (Exception e)

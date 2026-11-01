@@ -47,6 +47,7 @@ namespace Reflux.Api
     static class Rivals
     {
         const int MaxBuffer = 16 * 1024 * 1024;
+        static bool warned;
         static readonly Regex IdPattern = new Regex(@"\x00\x00\x00\x0EC\d{12}\x00", RegexOptions.Compiled);
         static readonly string[] Charts = { "B", "N", "H", "A", "L" };
         static readonly string[] Lamps = { "NP", "F", "AC", "EC", "NC", "HC", "EX", "FC", "PFC" };
@@ -167,21 +168,24 @@ namespace Reflux.Api
                 byte[] Read(long a, int n) => Utils.ReadRaw(a, n);
                 var rivals = new List<RivalDto>();
                 var scores = new List<RivalScoreDto>();
-                bool complete = true;
+                bool complete = true, unreadable = false;
                 foreach (var (side, offset) in new[] { ("SP", l.SpData), ("DP", l.DpData) })
                 {
                     var buf = ReadBuffer(Read, moduleBase + offset, l, out var error);
                     var parsed = buf == null ? (null, null) : Parse(buf, side, out error);
                     if (parsed.rivals == null)
                     {
-                        Console.WriteLine($"[API] {side} rivals not available ({error}). Check GET /api/layout/preview?struct=rival");
+                        if (!warned) { Console.WriteLine($"[API] {side} rivals not available ({error}). Check GET /api/layout/preview?struct=rival"); }
                         complete = false;
+                        unreadable = true;
                         continue;
                     }
                     rivals.AddRange(parsed.rivals);
                     scores.AddRange(parsed.scores);
                 }
                 if (rivals.Count == 0 && !ApiState.AcceptNoRivals) { complete = false; } /* The game may still be receiving them */
+                warned = unreadable;
+                ApiState.SetDataWarning("rivals", unreadable && ApiState.AcceptNoRivals); /* Not while the game may still be receiving them */
                 ApiState.PublishRivals(rivals, scores, complete);
             }
             catch (Exception e)

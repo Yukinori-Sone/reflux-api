@@ -227,7 +227,7 @@ namespace Reflux
                     if (!songCheck.LooksValid || Utils.songDb[Utils.songDb.Keys.Last()].totalNotes[3] < 10)
                     {
                         Utils.Debug("Notecount data seems bad, retrying fetching in case list wasn't fully populated.");
-                        ApiState.SetAttachState(AttachState.Loading, $"Song list doesn't look right ({songCheck}). If this stays, check the struct layout with GET /api/layout/preview");
+                        ApiState.SongListNotReady(songCheck.ToString()); /* layoutMismatch when it stays */
                         Thread.Sleep(5000);
                         if (ApiState.ConsumeRetry()) { processExit = true; break; } /* Re-attach requested, e.g. layout changed through the API */
                     }

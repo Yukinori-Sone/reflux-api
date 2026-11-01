@@ -55,7 +55,7 @@
 | `apiVersion` | API の版（今は 1） |
 | `instanceId` | Reflux を起動するたびに変わる ID。下の revision はこの ID が同じ間だけ比べられる |
 | `refluxVersion` | Reflux のバージョン。本家の版＋独自版の印（`1.16.6+custom.20261107`。日付はビルドした日） |
-| `attachState` | `waitingForProcess`（INFINITAS 待ち）、`checkingVersion`、`offsetMismatch`（オフセット不一致で待機中）、`offsetSearch`（コンソールで対話式探索中）、`loading`（曲データ読み込み中）、`ready`（監視中） |
+| `attachState` | `waitingForProcess`（INFINITAS 待ち）、`checkingVersion`、`offsetMismatch`（オフセット不一致で待機中）、`offsetSearch`（コンソールで対話式探索中）、`loading`（曲データ読み込み中）、`layoutMismatch`（読み込みを始めて 30 秒たっても曲リストが `Layout.CheckSongs` に通らない。INFINITAS の更新で構造体の配置が変わった可能性。`PUT /api/layout` で直すと再アタッチする）、`ready`（監視中） |
 | `attachStateSince` | その状態になった時刻（UTC） |
 | `message` | 状態の補足（不一致のときの案内、曲リストのチェック結果など）。無ければ `null` |
 | `processId` | bm2dx のプロセス ID |
@@ -68,6 +68,7 @@
 | `clearRatesRevision` | クリアレートの値が変わったときだけ増える（0 のうちは未取得） |
 | `rivalsRevision` | ライバルの一覧・スコアが変わったときだけ増える（0 のうちは未取得） |
 | `sessionPlays` | 今回の起動以降に記録したプレー数 |
+| `dataWarnings` | アタッチ中に読めないデータの種類の配列（`rivals` / `clearRates` / `playCounts`）。INFINITAS の更新で静的ポインタや構造体が動いた可能性。読めれば消える。ライバルはアタッチから2分たつまで出さない（ゲームが受け取り中のことがある） |
 | `serverTime` | 応答した時刻（UTC） |
 
 ### `GET /api/songs` / `charts` / `scores`

@@ -20,6 +20,8 @@ namespace Reflux.Api
         OffsetSearch,
         /// <summary>Waiting for the song list and reading databases</summary>
         Loading,
+        /// <summary>The song list still doesn't look right after a while: the struct layout probably moved with an INFINITAS update (fix with PUT /api/layout)</summary>
+        LayoutMismatch,
         /// <summary>Monitoring plays</summary>
         Ready,
     }
@@ -59,6 +61,11 @@ namespace Reflux.Api
         /// <summary>Incremented when /api/rivals and /api/rivals/scores content changes</summary>
         public int RivalsRevision { get; set; }
         public int SessionPlays { get; set; }
+        /// <summary>
+        /// Data the core can't read while attached: rivals, clearRates, playCounts. The struct layout or the static pointers may have
+        /// moved with an INFINITAS update. Empty when everything is read (replaced, never changed in place)
+        /// </summary>
+        public List<string> DataWarnings { get; set; } = new List<string>();
         public DateTime ServerTime { get; set; }
 
         public StatusDto Clone() => (StatusDto)MemberwiseClone();
@@ -88,6 +95,39 @@ namespace Reflux.Api
         static bool rivalsLoaded;
         static DateTime readyAt, lastRivalTry;
         static GameState gameState;
+        static readonly SortedSet<string> dataWarnings = new SortedSet<string>();
+
+        /// <summary>Mark a kind of data (rivals, clearRates, playCounts) as unreadable, or readable again with ok</summary>
+        public static void SetDataWarning(string what, bool unreadable)
+        {
+            lock (sync)
+            {
+                if (!(unreadable ? dataWarnings.Add(what) : dataWarnings.Remove(what))) { return; }
+                status.DataWarnings = dataWarnings.ToList();
+            }
+        }
+
+        /// <summary>
+        /// Main loop while the song list doesn't pass Layout.CheckSongs: loading at first (the game may still be filling it),
+        /// layoutMismatch when it still fails 30 s after loading started
+        /// </summary>
+        public static void SongListNotReady(string check)
+        {
+            bool mismatch;
+            lock (sync)
+            {
+                mismatch = status.AttachState == AttachState.LayoutMismatch ||
+                    (status.AttachState == AttachState.Loading && (DateTime.UtcNow - status.AttachStateSince).TotalSeconds >= 30);
+            }
+            if (mismatch)
+            {
+                SetAttachState(AttachState.LayoutMismatch, $"Song list still doesn't look right ({check}): the struct layout probably changed with an INFINITAS update. Check it with GET /api/layout/preview and fix it with PUT /api/layout");
+            }
+            else
+            {
+                SetAttachState(AttachState.Loading, $"Song list doesn't look right yet ({check}), retrying");
+            }
+        }
 
         /// <summary>
         /// gameState as the API reports it (call under sync): "starting" instead of songSelect after attaching until the game has
@@ -131,6 +171,8 @@ namespace Reflux.Api
                     status.GameVersion = null;
                     status.InfinitasId = null;
                     status.GameState = null;
+                    dataWarnings.Clear();
+                    status.DataWarnings = new List<string>();
                     status.CurrentChart = null;
                     status.PlayStateDetection = false;
                 }
@@ -209,8 +251,9 @@ namespace Reflux.Api
             lock (sync)
             {
                 UpdateGameStateText(); /* Ends "starting" after the time limit too */
-                /* Only in the first minutes: the game receives them while starting. Later the return to song select still retries */
-                if (rivalsLoaded || (DateTime.UtcNow - readyAt).TotalMinutes >= 2 || (DateTime.UtcNow - lastRivalTry).TotalSeconds < 5) { return; }
+                /* Every 5 s in the first minutes (the game receives them while starting), then every minute */
+                var every = (DateTime.UtcNow - readyAt).TotalMinutes < 2 ? 5 : 60;
+                if (rivalsLoaded || (DateTime.UtcNow - lastRivalTry).TotalSeconds < every) { return; }
                 lastRivalTry = DateTime.UtcNow;
             }
             Rivals.Refresh();

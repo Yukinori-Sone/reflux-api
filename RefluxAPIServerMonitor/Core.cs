@@ -181,6 +181,7 @@ namespace Reflux.ServerMonitor
         [DataMember(Name = "gameState")] public string GameState { get; set; }
         [DataMember(Name = "currentChart")] public CurrentChart CurrentChart { get; set; }
         [DataMember(Name = "sessionPlays")] public int SessionPlays { get; set; }
+        [DataMember(Name = "dataWarnings")] public List<string> DataWarnings { get; set; }
     }
 
     [DataContract]

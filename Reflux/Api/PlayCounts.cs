@@ -61,8 +61,10 @@ namespace Reflux.Api
                 if (counts == null)
                 {
                     Console.WriteLine($"[API] Play counts not available ({error}). Check GET /api/layout/preview?struct=scoreMap");
+                    ApiState.SetDataWarning("playCounts", true);
                     return false;
                 }
+                ApiState.SetDataWarning("playCounts", false);
                 var key = string.Join(";", counts.OrderBy(kv => kv.Key).Select(kv => $"{kv.Key.Item1}{kv.Key.Item2}{kv.Value.Item1}/{kv.Value.Item2}"));
                 if (key == currentKey) { return false; }
                 current = counts;

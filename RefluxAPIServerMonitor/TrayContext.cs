@@ -1,4 +1,5 @@
 using System;
+using System.Linq;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Drawing;
@@ -25,21 +26,37 @@ namespace Reflux.ServerMonitor
 
         public Level State =>
             Status == null ? (Service == null ? Level.Off : Level.Error)
-            : Status.AttachState == "ready" ? Level.Ok
-            : Status.AttachState == "offsetMismatch" || Status.AttachState == "offsetSearch" ? Level.Error
+            : Status.AttachState == "ready" ? (HasDataWarnings ? Level.Waiting : Level.Ok)
+            : Status.AttachState == "offsetMismatch" || Status.AttachState == "offsetSearch" || Status.AttachState == "layoutMismatch" ? Level.Error
             : Level.Waiting;
 
         public static string AttachStateJa(string s) => s switch
         {
             "waitingForProcess" => "INFINITAS 待ち",
             "checkingVersion" => "バージョン確認中",
-            "offsetMismatch" => "オフセット不一致",
+            "offsetMismatch" => "オフセット不一致（INFINITAS 更新？）",
+            "layoutMismatch" => "曲データの形が合わない（INFINITAS 更新？）",
             "offsetSearch" => "対話式オフセット探索中",
             "loading" => "曲データ読込中",
             "ready" => "監視中",
             null => "-",
             _ => s,
         };
+
+        public bool HasDataWarnings => Status?.DataWarnings != null && Status.DataWarnings.Count > 0;
+
+        /// <summary>"読めないデータ: ライバル、全国クリアレート" from status.dataWarnings, null when there are none</summary>
+        public static string DataWarningsJa(List<string> warnings)
+        {
+            if (warnings == null || warnings.Count == 0) { return null; }
+            return "読めないデータ: " + string.Join("、", warnings.Select(w => w switch
+            {
+                "rivals" => "ライバル",
+                "clearRates" => "全国クリアレート",
+                "playCounts" => "クリア・プレー回数",
+                _ => w,
+            })) + "（INFINITAS の更新の可能性）";
+        }
 
         public static string GameStateJa(string s) => s switch
         {
@@ -69,7 +86,7 @@ namespace Reflux.ServerMonitor
                 string text;
                 if (Status != null)
                 {
-                    text = AttachStateJa(Status.AttachState) + (Status.AttachState == "ready" ? "（" + GameStateJa(Status.GameState) + "）" : "");
+                    text = AttachStateJa(Status.AttachState) + (Status.AttachState == "ready" ? "（" + GameStateJa(Status.GameState) + "）" : "") + (HasDataWarnings ? "・一部読めず" : "");
                 }
                 else if (Service == null) { text = "サービス未登録・Reflux 停止"; }
                 else if (Service != ServiceControllerStatus.Running) { text = "サービス" + ServiceJa(Service); }

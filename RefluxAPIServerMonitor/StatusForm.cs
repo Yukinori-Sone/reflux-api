@@ -1,4 +1,5 @@
 using System;
+using System.Linq;
 using System.Collections.Generic;
 using System.Drawing;
 using System.ServiceProcess;
@@ -72,7 +73,8 @@ namespace Reflux.ServerMonitor
             string L(string k) => s.Latest != null && s.Latest.TryGetValue(k, out var v) ? v : null;
             Set("直近のプレー", s.Latest == null ? null : $"{L("title")} [{L("diff")}]  {L("lamp")}  EX {L("exscore")}  {(L("timestamp") is string t && DateTime.TryParse(t, out var dt) ? dt.ToLocalTime().ToString("MM/dd HH:mm") : "")}");
             Set("スクリーンショット", !ScreenshotSettings.Enabled ? "撮らない" : ResultScreenshot.LastSaved == null ? "リザルト画面で撮る（まだ撮っていない）" : "最後: " + System.IO.Path.GetFileName(ResultScreenshot.LastSaved));
-            Set("メッセージ", st?.Message, st?.Message != null ? red : (Color?)null);
+            var message = string.Join("　", new[] { Snapshot.DataWarningsJa(st?.DataWarnings), st?.Message }.Where(t => !string.IsNullOrEmpty(t)));
+            Set("メッセージ", message, message.Length > 0 ? red : (Color?)null);
             Set("最終確認", s.At.ToString("HH:mm:ss"));
             if (Visible)
             {
