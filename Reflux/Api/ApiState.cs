@@ -364,7 +364,10 @@ namespace Reflux.Api
                     /* Plays read from the current chart fallback (no play data) are not kept, as with the session TSV */
                     string id;
                     lock (sync) { id = status.InfinitasId; }
-                    PlayLog.Append(form, id, play.MissCountValid ? (int)play.MissCount : (int?)null);
+                    int? miss = play.MissCountValid ? (int)play.MissCount : (int?)null;
+                    var prev = PlayCounts.PrevBest(play.Chart.songid, play.Chart.difficulty.ToString());
+                    PlayLog.Append(form, id, miss, prev);
+                    if (!play.PrematureEnd) { PlayCounts.Merge(play.Chart.songid, play.Chart.difficulty.ToString(), play.Lamp, play.ExScore, miss); }
                 }
                 lock (sync)
                 {

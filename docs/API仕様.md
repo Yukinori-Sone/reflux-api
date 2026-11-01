@@ -89,6 +89,7 @@
 - `[{infinitasId, source, timestamp, songid, title, title2, diff, level, notecount, lamp, grade, exscore, misscount, pgreat, great, good, bad, poor, combobreak, fast, slow, gaugepercent, prematureend, playtype, style, style2, gauge, assist, range, ...}]`。古い順。値は `/api/latest` と同じく文字列
 - `source`: `reflux`（コアが記録したプレー）／`sessionTsv`（`plays.jsonl` が無かったときに `sessions/Session_*.tsv` から1回だけ取り込んだもの。曲は曲名で ID に対応づけ、`infinitasId` は取り込んだときのプレイヤー、`misscount` が `-` だったものは `null`）
 - `misscount` はミスカウントが有効なプレーだけ（途中終了などは `null`）。曲情報だけで判定の無い記録（プレーデータが読めなかったとき）は入れない
+- `prevLamp` / `prevExScore` / `prevMissCount`: そのプレーの直前の、ゲームが保存していた自己ベスト（ランプは `lamp` と同じ略号、ミスは無ければ `null`）。選曲画面に戻るたびにゲームの自己ベストのハッシュマップ（`PlayCounts`）から読み直した値に、それ以降に記録したプレー（クイックリトライ）を足したもの。`tracker.db` は使わない（ランプがゲームとの最大値で、プレイヤー別でもないため）。ログイン中のプレイヤーの値。ゲームはランプ PERFECT を保存しないので、PFC の後も `FC`。ハッシュマップが読めないときと、この項目を入れる前（2026-10-31 より前）の記録・`sessionTsv` には無い
 - クライアントは `sessionPlays` が変わるたびに、手元の最新の `timestamp` を `since` にして差分を取る
 
 ### `GET /api/screenshots` / `GET /api/screenshot?key=...`

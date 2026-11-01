@@ -21,13 +21,23 @@ namespace Reflux.Api
         const string FileName = "plays.jsonl";
         static readonly object fileLock = new object();
 
-        /// <summary>Append one recorded play. form is the same dictionary as /api/latest</summary>
-        public static void Append(Dictionary<string, string> form, string infinitasId, int? missCount)
+        /// <summary>
+        /// Append one recorded play. form is the same dictionary as /api/latest. prev is the game's best of the chart just before
+        /// the play (PlayCounts.PrevBest), written as prevLamp / prevExScore / prevMissCount when known
+        /// </summary>
+        public static void Append(Dictionary<string, string> form, string infinitasId, int? missCount, (Lamp lamp, int exScore, int? missCount)? prev)
         {
             if (!Config.ApiServer_Enabled) { return; } /* Without the API Reflux writes only what upstream writes */
             var o = new JObject { ["infinitasId"] = infinitasId, ["source"] = "reflux" };
             foreach (var kv in form) { o[kv.Key] = kv.Value; }
             o["misscount"] = missCount?.ToString();
+            if (prev.HasValue)
+            {
+                var (lamp, ex, miss) = prev.Value;
+                o["prevLamp"] = lamp.ToString();
+                o["prevExScore"] = ex.ToString();
+                o["prevMissCount"] = miss?.ToString();
+            }
             lock (fileLock)
             {
                 File.AppendAllText(FileName, o.ToString(Formatting.None) + "\n", new UTF8Encoding(false));
