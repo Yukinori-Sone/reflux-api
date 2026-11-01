@@ -62,7 +62,7 @@
 | `gameVersion` / `offsetsVersion` | ゲームのバージョン / `offsets.txt` のバージョン（`P2D:J:B:A:yyyymmddnn`） |
 | `infinitasId` | ログイン中のプレイヤーの INFINITAS ID（`C` ＋ 12 桁。画面表示の `C-1234-5678-9012` のハイフン無し）。アタッチのたびに読む（e-amusement パスを切り替えると変わる）。読めなければ `null` |
 | `playStateDetection` | プレー中の判定用マーカーが見つかったか |
-| `gameState` | `songSelect` / `playing` / `resultScreen`（変化するまでは `null`） |
+| `gameState` | `starting` / `songSelect` / `playing` / `resultScreen`（アタッチするまでは `null`）。`starting` はアタッチ直後、ゲームがサーバーからデータを受け取り終わるまで（一番遅いライバルがそろうまで、最長2分）。`songSelect` は本家の名前のままで、タイトル・モード選択・選曲画面などのメニュー画面すべて（表示は「メニュー画面」） |
 | `currentChart` | `{songId, title, difficulty}`。選曲中・プレー中の譜面 |
 | `songsRevision` / `scoresRevision` | 曲データ / 自己ベストを読み直すたびに増える。クライアントはこれが変わったときだけ取り直す |
 | `clearRatesRevision` | クリアレートの値が変わったときだけ増える（0 のうちは未取得） |

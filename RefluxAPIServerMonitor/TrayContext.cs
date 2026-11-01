@@ -43,7 +43,8 @@ namespace Reflux.ServerMonitor
 
         public static string GameStateJa(string s) => s switch
         {
-            "songSelect" => "選曲中",
+            "starting" => "起動中（データ受信中）",
+            "songSelect" => "メニュー画面",
             "playing" => "プレー中",
             "resultScreen" => "リザルト",
             null => "-",

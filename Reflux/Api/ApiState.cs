@@ -87,6 +87,18 @@ namespace Reflux.Api
         static string rivalsKey = "";
         static bool rivalsLoaded;
         static DateTime readyAt, lastRivalTry;
+        static GameState gameState;
+
+        /// <summary>
+        /// gameState as the API reports it (call under sync): "starting" instead of songSelect after attaching until the game has
+        /// received its data. The rivals arrive last (during NOW LOADING, seen on 2026101400), so this waits for them, at most as
+        /// long as zero rivals isn't accepted (players without rivals, or a rival layout that no longer matches)
+        /// </summary>
+        static void UpdateGameStateText()
+        {
+            if (status.GameState == null) { return; } /* Not attached */
+            status.GameState = gameState == GameState.songSelect && !rivalsLoaded && (DateTime.UtcNow - readyAt).TotalMinutes < 2 ? "starting" : gameState.ToString();
+        }
 
         public static readonly JsonSerializerSettings JsonSettings = new JsonSerializerSettings
         {
@@ -170,7 +182,9 @@ namespace Reflux.Api
             }
             lock (sync)
             {
+                gameState = state;
                 status.GameState = state.ToString();
+                UpdateGameStateText();
                 if (state == GameState.playing)
                 {
                     status.CurrentChart = current;
@@ -194,7 +208,9 @@ namespace Reflux.Api
         {
             lock (sync)
             {
-                if (rivalsLoaded || (DateTime.UtcNow - lastRivalTry).TotalSeconds < 5) { return; }
+                UpdateGameStateText(); /* Ends "starting" after the time limit too */
+                /* Only in the first minutes: the game receives them while starting. Later the return to song select still retries */
+                if (rivalsLoaded || (DateTime.UtcNow - readyAt).TotalMinutes >= 2 || (DateTime.UtcNow - lastRivalTry).TotalSeconds < 5) { return; }
                 lastRivalTry = DateTime.UtcNow;
             }
             Rivals.Refresh();
@@ -209,6 +225,7 @@ namespace Reflux.Api
             lock (sync)
             {
                 rivalsLoaded = complete;
+                UpdateGameStateText();
                 if (key == rivalsKey) { return; }
                 rivalsKey = key;
                 rivals = new CachedJson(list);
