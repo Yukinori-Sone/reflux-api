@@ -10,14 +10,14 @@ namespace Reflux.Api
 {
     /// <summary>
     /// Result screen screenshots taken by RefluxAPIServerMonitor.exe (the core can't take them when it runs as a service) in
-    /// screenshots\, named after the play: &lt;play time UTC yyyyMMddTHHmmssZ&gt;_&lt;song id&gt;_&lt;difficulty&gt;.png|jpg.
+    /// screenshots\, named after the play: &lt;play time UTC yyyyMMddTHHmmssZ&gt;_&lt;song id&gt;_&lt;difficulty&gt;.png|jpg|jpeg (the file name only; the format is read from the content).
     /// GET /api/screenshots lists them, GET /api/screenshot?key=... returns one.
     /// </summary>
     static class Screenshots
     {
         const string Folder = "screenshots";
         static readonly Regex KeyPattern = new Regex(@"^\d{8}T\d{6}Z_(\d{5}_(SP|DP)[BNHAL]|unrecorded)$");
-        static readonly string[] Extensions = { ".png", ".jpg" };
+        static readonly string[] Extensions = { ".png", ".jpg", ".jpeg" };
 
         public static string ListJson()
         {
@@ -53,7 +53,8 @@ namespace Reflux.Api
                     s.CopyTo(ms);
                     bytes = ms.ToArray();
                 }
-                ApiServer.WriteBytes(ctx, 200, ext == ".png" ? "image/png" : "image/jpeg", bytes, null);
+                // By the content, so a file converted outside (PNG <-> JPEG) works whatever its extension
+                ApiServer.WriteBytes(ctx, 200, bytes.Length > 0 && bytes[0] == 0x89 ? "image/png" : "image/jpeg", bytes, null);
                 return;
             }
             ApiServer.Write(ctx, 404, JsonConvert.SerializeObject(new { error = "not_found", message = "no screenshot for " + key }));
