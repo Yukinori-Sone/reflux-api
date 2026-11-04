@@ -99,6 +99,7 @@
 - ファイル名（拡張子を除いた部分が `key`）: `<プレー日時 UTC yyyyMMddTHHmmssZ>_<曲ID 5桁>_<譜面>`（例 `20261015T155011Z_23083_DPA`）。日時・曲・譜面は `/api/plays` の `timestamp`・`songid`・`diff` と同じなので、プレーと1対1で結びつく。プレーが記録されなかったときは `<撮った日時>_unrecorded`
 - `GET /api/screenshots`: `[{key, file, size, savedAt}]`
 - `GET /api/screenshot?key=...`: 画像そのもの。`key` の形が違えば `400`、無ければ `404`
+- 拡張子は `.png` / `.jpg` / `.jpeg` で、同じ `key` が複数あればこの順に先のものを使う（クライアントの手元の `screenshots/` も同じ順）。`Content-Type` は拡張子ではなく中身（先頭のシグネチャ）で決めるので、外部で PNG ⇔ JPEG に変換して拡張子が合わなくても返せる。チェックサムなどは持たず、ファイル名だけで結びつける
 
 ### `GET /api/rivals` / `GET /api/rivals/scores`
 

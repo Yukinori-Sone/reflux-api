@@ -15,7 +15,7 @@
 | 【追加】設定 | `config.ini` の `[Api]` セクション | 別PCクライアント用の HTTP API。初期値は無効なので、そのままなら本家と同じ動き |
 | 【追加】ファイル | `bestdetail.json` | 自己ベストを出したプレーの判定内訳（PG/GR、BAD/POOR） |
 | 【追加】ファイル | `plays.jsonl` | 全プレー記録（INFINITAS ID 付き）。`[Api]` 有効時だけ。`/api/plays` で返す |
-| 【追加】フォルダ | `screenshots/` | リザルト画面のスクリーンショット（モニターが撮る。1枚 PNG 1.8MB 前後）と `capture.log`。`/api/screenshots` で返す。消すのは手で |
+| 【追加】フォルダ | `screenshots/` | リザルト画面のスクリーンショット（モニターが撮る。1枚 PNG 1.8MB 前後）と `capture.log`。`/api/screenshots` で返す。`.png` / `.jpg` / `.jpeg` のどれでもよく（この順に優先）、外部で変換してもファイル名の拡張子より前を変えなければ結びつく。消すのは手で |
 | 【変更】設定 | セッション TSV の単位 | `coresettings.json` の `sessionFile` で、起動ごと（本家と同じ）／日ごと／月ごと（初期値）／1ファイル／出力しないを選べる |
 | 【変更】初期値 | 同梱の `config.ini` | `[Api] enabled = true`、`savelatestjson`・`savelatesttxt`・`[Livestream]` の3項目を false（本家は true） |
 | 【追加】動作 | Windows サービス | `Reflux.exe --service` でサービスとして動く。登録・解除は `Service-Install.bat` / `Service-UnInstall.bat`。同じフォルダの Reflux は1つしか動かない |
