@@ -350,9 +350,35 @@ namespace Reflux.Api
                 int series = image == "ss_80th" ? 80 : no - 15;
                 return SeriesNames.TryGetValue(series, out var s) ? s : $"バージョン {series}";
             }
-            if (kind == 15) { return "楽曲パック " + (image2 ?? "").Replace("so_pack_", ""); }
+            if (kind == 15) { return PackFolderName(image2 ?? ""); }
             return FolderKinds.TryGetValue(kind, out var k) ? k : null;
         }
+
+        /// <summary>
+        /// Song pack folder names as shown on song select (checked 2026-11-04, 2026101400): so_pack_mu1..30 music packs, st1..3 startup selections,
+        /// ot1..13 collaboration packs in release order. The pack of a song is the unlock data's item ID (layout unlock.packItemId), see the client's Names.Packs
+        /// </summary>
+        static string PackFolderName(string image)
+        {
+            var m = System.Text.RegularExpressions.Regex.Match(image, @"^so_pack_(mu|st|ot)(\d+)$");
+            if (!m.Success) { return "楽曲パック " + image; }
+            int n = int.Parse(m.Groups[2].Value);
+            switch (m.Groups[1].Value)
+            {
+                case "mu": return $"楽曲パック vol.{n}";
+                case "st": return $"スタートアップセレクション 楽曲パック vol.{n}";
+            }
+            return CollabPacks.TryGetValue(n, out var name) ? name : $"コラボ楽曲パック {n}";
+        }
+
+        static readonly Dictionary<int, string> CollabPacks = new Dictionary<int, string>
+        {
+            [1] = "pop'n music セレクション 楽曲パック vol.1", [2] = "jubeat セレクション 楽曲パック vol.1", [3] = "BPL セレクション 楽曲パック vol.1",
+            [4] = "SOUND VOLTEX セレクション 楽曲パック vol.1", [5] = "pop'n music セレクション 楽曲パック vol.2", [6] = "BPL セレクション 楽曲パック vol.2",
+            [7] = "東方Project セレクション 楽曲パック vol.1", [8] = "ULTIMATE MOBILE セレクション 楽曲パック vol.1", [9] = "SOUND VOLTEX セレクション 楽曲パック vol.2",
+            [10] = "GITADORA セレクション 楽曲パック vol.1", [11] = "The 4th セレクション 楽曲パック vol.1", [12] = "BPL セレクション 楽曲パック vol.3",
+            [13] = "DanceDanceRevolution セレクション 楽曲パック vol.1",
+        };
 
         /// <summary>Reflux's own definitions (not tables in the game, or tables not located yet)</summary>
         static IEnumerable<Master> BuiltIn()

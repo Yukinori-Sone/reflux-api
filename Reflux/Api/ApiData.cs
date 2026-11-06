@@ -21,6 +21,8 @@ namespace Reflux.Api
         public string UnlockType { get; set; }
         /// <summary>Label from customtypes.txt (song pack, DJP unlock etc.), null if none</summary>
         public string Label { get; set; }
+        /// <summary>Song pack item ID from the unlock data ("I1800001".."), null if the song isn't sold in a pack</summary>
+        public string PackItemId { get; set; }
         /// <summary>False when the song is missing from the game's unlock data: it isn't shown on song select at all
         /// (unlike a locked song, which is shown greyed out and can be unlocked)</summary>
         public bool Listed { get; set; }
@@ -69,6 +71,7 @@ namespace Reflux.Api
         {
             var songs = new List<SongDto>();
             var charts = new List<ChartDto>();
+            var packs = ReadPackItemIds();
             foreach (var kv in Utils.songDb)
             {
                 var song = kv.Value;
@@ -83,6 +86,7 @@ namespace Reflux.Api
                     UnlockType = song.type.ToString(),
                     Label = Utils.customTypes.TryGetValue(song.ID, out var label) ? label : null,
                     Listed = Utils.unlockDb.ContainsKey(song.ID),
+                    PackItemId = packs.TryGetValue(song.ID, out var pack) ? pack : null,
                 });
                 for (int i = 0; i < song.level.Length; i++)
                 {
@@ -98,6 +102,32 @@ namespace Reflux.Api
                 }
             }
             return (songs, charts);
+        }
+
+        /// <summary>Song pack item IDs of the unlock data entries (layout unlock.packItemId), song ID -> item ID. Main loop thread only</summary>
+        static Dictionary<string, string> ReadPackItemIds()
+        {
+            var result = new Dictionary<string, string>();
+            try
+            {
+                var l = Layout.Unlock;
+                int count = Utils.unlockDb.Count;
+                var buf = Utils.ReadRaw(Offsets.UnlockData, l.EntrySize * count);
+                var e = new byte[l.EntrySize];
+                for (int i = 0; i < count; i++)
+                {
+                    Array.Copy(buf, i * l.EntrySize, e, 0, l.EntrySize);
+                    int id = BitConverter.ToInt32(e, l.Id);
+                    if (id == 0) { break; }
+                    var pack = Layout.ReadString(e, l.PackItemId);
+                    if (pack != "") { result[id.ToString("D5")] = pack; }
+                }
+            }
+            catch (Exception ex)
+            {
+                Utils.Except(ex, "ApiPackItemIds");
+            }
+            return result;
         }
 
         public static List<ScoreDto> BuildScores()

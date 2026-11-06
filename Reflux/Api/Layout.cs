@@ -58,6 +58,9 @@ namespace Reflux.Api
         public int Type = 0x4;
         /// <summary>Unlocked charts, int32 bit field by difficulty (bit 0 = SPB ... bit 9 = DPL)</summary>
         public int Unlocks = 0x8;
+        /// <summary>Song pack item ID (music_pack_item_id, "I1800001".."I1800046"), empty for songs not sold in a pack.
+        /// Confirmed 2026-11-04 against the pack folders on song select</summary>
+        public StringField PackItemId = new StringField(0xC, 0x14, "ascii");
     }
 
     /// <summary>
@@ -292,6 +295,8 @@ namespace Reflux.Api
                 case "utf8":
                 case "utf-8":
                     return System.Text.Encoding.UTF8;
+                case "ascii":
+                    return System.Text.Encoding.ASCII;
                 case "sjis":
                 case "shift_jis":
                 case "shift-jis":
@@ -302,7 +307,7 @@ namespace Reflux.Api
             }
         }
 
-        static string ReadString(byte[] e, StringField f)
+        public static string ReadString(byte[] e, StringField f)
         {
             var enc = GetEncoding(f.Encoding);
             int len = f.Length;
@@ -473,7 +478,7 @@ namespace Reflux.Api
             if (target is UnlockLayout u)
             {
                 if (u.EntrySize < 4 || u.EntrySize > 0x1000) { return "unlock.entrySize must be 4..0x1000"; }
-                return CheckInside("unlock", u.EntrySize, ("id", u.Id, 4), ("type", u.Type, 4), ("unlocks", u.Unlocks, 4));
+                return CheckInside("unlock", u.EntrySize, ("id", u.Id, 4), ("type", u.Type, 4), ("unlocks", u.Unlocks, 4), ("packItemId", u.PackItemId.Offset, u.PackItemId.Length));
             }
             if (target is ScoreMapLayout m)
             {
@@ -705,7 +710,7 @@ namespace Reflux.Api
         static object PreviewUnlock(DebugApi.MemoryReader r, UnlockLayout l, string startExpr, int count)
         {
             var start = Resolve(r, startExpr);
-            var entries = new List<(long address, int id, int type, int unlocks)>();
+            var entries = new List<(long address, int id, int type, int unlocks, string pack)>();
             bool endFound = false;
             const int perChunk = 256;
             while (!endFound && entries.Count < 10000)
@@ -717,7 +722,9 @@ namespace Reflux.Api
                     int o = i * l.EntrySize;
                     int id = BitConverter.ToInt32(data, o + l.Id);
                     if (id == 0) { endFound = true; break; }
-                    entries.Add((chunkStart + o, id, BitConverter.ToInt32(data, o + l.Type), BitConverter.ToInt32(data, o + l.Unlocks)));
+                    var e = new byte[l.EntrySize];
+                    Array.Copy(data, o, e, 0, l.EntrySize);
+                    entries.Add((chunkStart + o, id, BitConverter.ToInt32(data, o + l.Type), BitConverter.ToInt32(data, o + l.Unlocks), ReadString(e, l.PackItemId)));
                 }
             }
             var db = Utils.songDb;
@@ -725,7 +732,7 @@ namespace Reflux.Api
             int outOfRange = entries.Count(e => e.id < 1000 || e.id > 99999);
             int badType = entries.Count(e => e.type < 1 || e.type > 3);
             int badBits = entries.Count(e => (e.unlocks & ~0x3FF) != 0);
-            object Entry((long address, int id, int type, int unlocks) e) => new { address = $"0x{e.address:X}", id = e.id.ToString("D5"), e.type, unlocks = $"0x{e.unlocks:X3}" };
+            object Entry((long address, int id, int type, int unlocks, string pack) e) => new { address = $"0x{e.address:X}", id = e.id.ToString("D5"), e.type, unlocks = $"0x{e.unlocks:X3}", packItemId = e.pack };
             return new
             {
                 start = $"0x{start:X}",
@@ -740,6 +747,9 @@ namespace Reflux.Api
                     idsOutOfRange = outOfRange,
                     badType,
                     badUnlockBits = badBits,
+                    /* Song packs: only Sub songs have an item ID */
+                    packItemIds = entries.Where(e => e.pack != "").Select(e => e.pack).Distinct().Count(),
+                    packSongsNotSub = entries.Count(e => e.pack != "" && e.type != 3),
                     looksValid = endFound && entries.Count >= 100 && outOfRange == 0 && badType == 0 && badBits == 0,
                 },
                 first = entries.Take(count).Select(Entry),

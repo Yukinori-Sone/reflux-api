@@ -73,7 +73,7 @@
 
 ### `GET /api/songs` / `charts` / `scores`
 
-- songs: `{id, title, title2, artist, genre, folder, unlockType, label, listed}`。`listed` が false の曲はゲームの解禁データに無く、選曲画面に表示されない（BIT 等で解禁できる「未解禁」とは別。2026101400 では IIDX RED Ending (Ryu☆Remix)・Seven Times Four の2曲。クライアントでは NOT DISPLAYED）。`id` は5桁ゼロ埋め、`folder` はバージョンフォルダ番号（0 = 1st style、1 = substream、80 = INFINITAS）
+- songs: `{id, title, title2, artist, genre, folder, unlockType, label, packItemId, listed}`。`packItemId` は楽曲パックの商品ID（解禁データの +0xC、`I1800001`〜。パックで売っている曲＝解禁種別 Sub だけ、ほかは null）。`label` は本家の `customtypes.txt` のラベル（2026-03 以降のパックは無い）。`listed` が false の曲はゲームの解禁データに無く、選曲画面に表示されない（BIT 等で解禁できる「未解禁」とは別。2026101400 では IIDX RED Ending (Ryu☆Remix)・Seven Times Four の2曲。クライアントでは NOT DISPLAYED）。`id` は5桁ゼロ埋め、`folder` はバージョンフォルダ番号（0 = 1st style、1 = substream、80 = INFINITAS）
 - charts: `{songId, difficulty, level, notes, bpm}`。`difficulty` は `SPB` `SPN` `SPH` `SPA` `SPL` `DPB` `DPN` `DPH` `DPA` `DPL`
 - scores: `{songId, difficulty, unlocked, lamp, grade, exScore, missCount, pGreat, great, bad, poor, clearCount, playCount}`。`clearCount` / `playCount` はゲームが持っているクリア回数・プレー回数（自己ベストのハッシュマップの +0x28 / +0x2C。選曲画面に戻るたびに読み直し、変わっていれば `scoresRevision` が増える）。
   `lamp` は `NP` `F` `AC` `EC` `NC` `HC` `EX` `FC` `PFC`。`pGreat` 〜 `poor` は Reflux が記録したプレーで自己ベストと一致したときだけ値が入る（ゲームは保存していない）
@@ -192,7 +192,7 @@ curl -X PUT "$A/settings" -d '{"unlockCheckSeconds":-1,"trackerTsv":"onChange","
 - `struct` は `song`（既定）、`unlock`、`scoreMap`、`playData`、`judge`、`settings`、`currentSong`、`gameState`、`clearRate`、`rival`
 - `start` は読み始めるアドレス式。既定は構造体に対応するオフセット（`song` なら `songList`）
 - `count` は先頭から返す件数（`song` / `unlock` / `scoreMap`。既定 5、最大 500）
-- `song` / `unlock` / `scoreMap` は全件を読んで `summary` にチェック結果を返す。`summary.looksValid` が `true` なら配置はたぶん正しい。
+- `song` / `unlock` / `scoreMap` は全件を読んで `summary` にチェック結果を返す（`unlock` は楽曲パックの数 `packItemIds`（2026101400 で 46）と、Sub 以外なのに商品IDがある曲の数 `packSongsNotSub`（0 のはず）も返す）。`summary.looksValid` が `true` なら配置はたぶん正しい。
   `song` のチェックはメインループも使っていて、合格しないと曲データの読み込みを先へ進めない（`status.message` にチェック結果が出る）
 - `playData` / `judge` / `currentSong` は各項目の今の値、`settings` は P1 側と P2 側の値、`gameState` はプレー中マーカーと選曲画面マーカーの位置と値を返す
 - `clearRate` は SP・DP の木をたどった結果。`songs=12023,25094` でその曲の値だけ返す
@@ -210,7 +210,7 @@ curl -X PUT "$A/settings" -d '{"unlockCheckSeconds":-1,"trackerTsv":"onChange","
     "artist": { "offset": "0x1C0", "length": "0x100", "encoding": "utf16" },
     "folder": "0x2D8", "levels": "0x2E0", "bpm": "0x2F0", "notes": "0x370", "id": "0x5B0"
   },
-  "unlock": { "entrySize": "0x20", "id": "0x0", "type": "0x4", "unlocks": "0x8" },
+  "unlock": { "entrySize": "0x20", "id": "0x0", "type": "0x4", "unlocks": "0x8", "packItemId": { "offset": "0xC", "length": "0x14", "encoding": "ascii" } },
   "scoreMap": {
     "nullNode": "-0x10", "bucketsStart": "0x0", "bucketsEnd": "0x8",
     "nodeSize": "0x40", "next": "0x0", "prev": "0x8", "difficulty": "0x10", "song": "0x14",
