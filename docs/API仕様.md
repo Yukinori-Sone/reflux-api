@@ -226,7 +226,7 @@ curl -X PUT "$A/settings" -d '{"unlockCheckSeconds":-1,"trackerTsv":"onChange","
   },
   "settings": {
     "style": "0x0", "gauge": "0x4", "assist": "0x8", "flip": "0xC", "range": "0x10",
-    "style2": "0x14", "battle": "0x20", "hRan": "0x24", "p2Offset": "0x48"
+    "style2": "0x14", "battle": "0x28", "hRan": "0x2C", "p2Offset": "0x48"
   },
   "currentSong": { "song": "0x0", "difficulty": "0x4" },
   "gameState": { "markerSearchStart": "0x90", "markerSearchLength": "0x60", "markerFromMagic": "0x18", "songSelectMarker": "-0x18" },
