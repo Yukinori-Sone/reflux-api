@@ -101,7 +101,13 @@
             }
             flip = flipVal == 1;
             battle = battleVal == 1;
-            Hran = HranVal == 1;
+            /* H-RANDOM is one switch for both sides at the P1 position (the P2 side position stayed 0 in DP); it turns the S-RANDOM sides into H-RANDOM */
+            Hran = HranVal == 1 || Utils.ReadInt32(Offsets.PlaySettings, l.HRan) == 1;
+            if (Hran)
+            {
+                if (style == "S-RANDOM") { style = "H-RANDOM"; }
+                if (style2 == "S-RANDOM") { style2 = "H-RANDOM"; }
+            }
         }
     }
 }
