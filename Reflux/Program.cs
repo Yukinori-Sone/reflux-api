@@ -397,7 +397,7 @@ namespace Reflux
 
                                 if (latestData.DataAvailable)
                                 {
-                                    if (Config.Save_remote)
+                                    if (Config.Save_remote && !latestData.Unsaved)
                                     {
                                         Network.SendPlayData(latestData);
                                     }
@@ -405,6 +405,8 @@ namespace Reflux
                                     {
                                         try
                                         {
+                                            if (!latestData.Unsaved) /* DOUBLE BATTLE / H-RANDOM aren't bests */
+                                            { /* The upstream lines below are left unindented to keep merges simple */
                                             /* Update best lamp/grade */
                                             Chart c = new Chart() { songID = latestData.Chart.songid, difficulty = latestData.Chart.difficulty };
                                             var entry = Tracker.trackerDb[c];
@@ -417,6 +419,7 @@ namespace Reflux
                                             entry.ex_score = Math.Max(entry.ex_score, latestData.ExScore);
                                             Tracker.trackerDb[c] = entry;
                                             Tracker.SaveTracker();
+                                            }
 
                                             var sessionTsv = Api.CoreSettings.SessionFile(sessionFile);
                                             if (sessionTsv != null) { WriteLine(sessionTsv, latestData.GetTsvEntry()); }
@@ -426,7 +429,7 @@ namespace Reflux
                                             Utils.Except(e, "SessionEntry");
                                         }
                                     }
-                                    if (Config.Save_json)
+                                    if (Config.Save_json && !latestData.Unsaved)
                                     {
                                         var entry = latestData.GetJsonEntry();
                                         var json = JsonConvert.DeserializeObject<JObject>(File.ReadAllText(jsonfile.FullName));

@@ -335,8 +335,15 @@ namespace Reflux.Api
                 var form = play.ToPostForm();
                 form.Remove("apikey");
                 form["timestamp"] = DateTime.UtcNow.ToString("o");
+                if (play.Unsaved)
+                {
+                    /* DOUBLE BATTLE / H-RANDOM: built by Reflux (UnsavedPlay), not kept by the game */
+                    form["unsaved"] = "true";
+                    form["battle"] = play.Battle.ToString().ToLower();
+                    form["hran"] = play.Hran.ToString().ToLower();
+                }
 
-                if (play.DataAvailable)
+                if (play.DataAvailable && !play.Unsaved)
                 {
                     var c = new Chart() { songID = play.Chart.songid, difficulty = play.Chart.difficulty };
                     if (!Config.Save_local)
@@ -366,9 +373,9 @@ namespace Reflux.Api
                     string id;
                     lock (sync) { id = status.InfinitasId; }
                     int? miss = play.MissCountValid ? (int)play.MissCount : (int?)null;
-                    var prev = PlayCounts.PrevBest(play.Chart.songid, play.Chart.difficulty.ToString());
+                    var prev = play.Unsaved ? null : PlayCounts.PrevBest(play.Chart.songid, play.Chart.difficulty.ToString());
                     PlayLog.Append(form, id, miss, prev);
-                    if (!play.PrematureEnd) { PlayCounts.Merge(play.Chart.songid, play.Chart.difficulty.ToString(), play.Lamp, play.ExScore, miss); }
+                    if (!play.PrematureEnd && !play.Unsaved) { PlayCounts.Merge(play.Chart.songid, play.Chart.difficulty.ToString(), play.Lamp, play.ExScore, miss); }
                 }
                 lock (sync)
                 {

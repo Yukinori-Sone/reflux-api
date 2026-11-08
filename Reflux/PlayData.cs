@@ -33,6 +33,10 @@ namespace Reflux
         /// False if play data isn't available (H-RAN, BATTLE or assist options enabled)
         /// </summary>
         public bool DataAvailable { get; private set; }
+        /// <summary>DOUBLE BATTLE or H-RANDOM: the game keeps no score for it, so it isn't a best anywhere (Api/UnsavedPlay.cs)</summary>
+        public bool Unsaved { get; private set; }
+        public bool Battle { get { return settings.battle; } }
+        public bool Hran { get { return settings.Hran; } }
         public ChartInfo Chart { get { return chart; } }
         public Grade Grade { get { return grade; } }
         public Lamp Lamp { get { return clearLamp; } }
@@ -70,6 +74,23 @@ namespace Reflux
             settings.Fetch(judges.playtype);
 
             timestamp = DateTime.UtcNow;
+
+            if (Api.UnsavedPlay.Applies(settings))
+            {
+                /* The game writes no play data for DOUBLE BATTLE / H-RANDOM: build the play from the chart, the judges and the gauge */
+                var lg = Api.Layout.Judge;
+                var played = Api.UnsavedPlay.Chart(judges, settings);
+                songID = played.songId;
+                gauge = Utils.ReadInt32(Offsets.JudgeData, lg.P1Gauge) + Utils.ReadInt32(Offsets.JudgeData, lg.P2Gauge);
+                chart = FetchChartInfo(Utils.songDb[songID], played.difficulty);
+                if (settings.battle) { chart.totalNotes *= 2; } /* Both sides play the SP chart */
+                clearLamp = Api.UnsavedPlay.Lamp(judges, settings, gauge);
+                exscore = judges.pgreat * 2 + judges.great;
+                grade = Api.UnsavedPlay.Grade(exscore, chart.totalNotes);
+                Unsaved = true;
+                DataAvailable = true;
+                return;
+            }
 
             var l = Api.Layout.PlayData; /* Field positions from layout.json or built-in defaults */
             var lj = Api.Layout.Judge;
