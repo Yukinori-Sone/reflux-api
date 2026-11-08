@@ -237,6 +237,7 @@ namespace Reflux.Api
                 CoreSettings.OnSongSelect();
                 if (PlayCounts.Refresh()) { PublishScores(); } /* The game updates clear / play counts after every play */
                 ClearRates.Refresh(); /* Server statistics may have been updated while playing */
+                if (SongReadings.ShouldRetry()) { PublishSongs(); } /* The reading table wasn't there yet when the songs were published */
                 bool loaded;
                 lock (sync) { loaded = rivalsLoaded; }
                 if (!loaded) { Rivals.Refresh(); } /* The game fetches rivals only at startup, retry until both sides were read */

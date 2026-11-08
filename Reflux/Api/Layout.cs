@@ -225,6 +225,7 @@ namespace Reflux.Api
         public GameStateLayout GameState = new GameStateLayout();
         public ClearRateLayout ClearRate = new ClearRateLayout();
         public RivalLayout Rival = new RivalLayout();
+        public ReadingLayout Reading = new ReadingLayout();
         public PlayerLayout Player = new PlayerLayout();
         public MastersLayout Masters = new MastersLayout();
     }
@@ -480,6 +481,12 @@ namespace Reflux.Api
                 if (u.EntrySize < 4 || u.EntrySize > 0x1000) { return "unlock.entrySize must be 4..0x1000"; }
                 return CheckInside("unlock", u.EntrySize, ("id", u.Id, 4), ("type", u.Type, 4), ("unlocks", u.Unlocks, 4), ("packItemId", u.PackItemId.Offset, u.PackItemId.Length));
             }
+            if (target is ReadingLayout rd)
+            {
+                if (rd.EntrySize < 0x10 || rd.EntrySize > 0x1000) { return "reading.entrySize must be 0x10..0x1000"; }
+                return CheckInside("reading", rd.EntrySize, ("id", rd.Id, 4), ("artistReading", rd.ArtistReading, 0x20), ("titleReading", rd.TitleReading, 0x20),
+                    ("searchKey", rd.SearchKey, 0x20), ("artistEnglish", rd.ArtistEnglish, 0x20));
+            }
             if (target is ScoreMapLayout m)
             {
                 if (m.NodeSize < 0x10 || m.NodeSize > 0x1000) { return "scoreMap.nodeSize must be 0x10..0x1000"; }
@@ -606,6 +613,7 @@ namespace Reflux.Api
                         "currentsong" => PreviewFields(reader, layout.CurrentSong, q["start"] ?? "currentSong"),
                         "gamestate" => PreviewGameState(reader, layout.GameState),
                         "clearrate" => PreviewClearRate(reader, layout.ClearRate, q["songs"], count),
+                        "reading" => PreviewReading(reader, layout.Reading, q["songs"], count),
                         "rival" => PreviewRival(reader, layout.Rival, q["songs"]),
                         "masters" => new { layout = ToJson(layout.Masters), masters = Masters.ReadExe(reader, layout.Masters, null) },
                         _ => null,
@@ -617,7 +625,7 @@ namespace Reflux.Api
                 }
                 if (result == null)
                 {
-                    ApiServer.Write(ctx, 400, Error("unknown_struct", "struct must be song, unlock, scoreMap, playData, judge, settings, currentSong, gameState, clearRate, rival or masters")); return;
+                    ApiServer.Write(ctx, 400, Error("unknown_struct", "struct must be song, unlock, scoreMap, playData, judge, settings, currentSong, gameState, clearRate, rival, reading or masters")); return;
                 }
                 ApiServer.Write(ctx, 200, JsonConvert.SerializeObject(result, ApiState.JsonSettings));
                 return;
@@ -841,6 +849,32 @@ namespace Reflux.Api
                 };
             }
             return new { layout = ToJson(l), sp = Side("SP", l.SpMap), dp = Side("DP", l.DpMap) };
+        }
+
+        /// <summary>Song readings (sort / search table); songs=25094 lists those songs, otherwise the first ones</summary>
+        static object PreviewReading(DebugApi.MemoryReader r, ReadingLayout l, string songs, int count)
+        {
+            var moduleBase = Resolve(r, "base");
+            var watch = (songs ?? "").Split(',', StringSplitOptions.RemoveEmptyEntries).Select(x => x.Trim().PadLeft(5, '0')).ToHashSet();
+            var readings = SongReadings.Read(r.Read, moduleBase, l, out var error);
+            var db = Utils.songDb;
+            int missingTitle = readings.Values.Count(x => string.IsNullOrEmpty(x.Title));
+            return new
+            {
+                layout = ToJson(l),
+                pointer = $"0x{moduleBase + l.Vector:X}",
+                error,
+                summary = new
+                {
+                    entries = readings.Count,
+                    songListEntries = db.Count,
+                    notInSongList = db.Count == 0 ? (int?)null : readings.Keys.Count(k => !db.ContainsKey(k)),
+                    withoutTitleReading = missingTitle,
+                    looksValid = readings.Count >= 100 && missingTitle < readings.Count / 10,
+                },
+                songs = readings.Where(kv => watch.Count == 0 || watch.Contains(kv.Key)).Take(watch.Count > 0 ? 500 : count)
+                    .Select(kv => new { id = kv.Key, titleReading = kv.Value.Title, artistReading = kv.Value.Artist, artistEnglish = kv.Value.ArtistEnglish }),
+            };
         }
 
         /// <summary>Both rival sides; songs=25094 also lists the rival scores of those songs</summary>
