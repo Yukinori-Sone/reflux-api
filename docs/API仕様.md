@@ -73,7 +73,7 @@
 
 ### `GET /api/songs` / `charts` / `scores`
 
-- songs: `{id, title, title2, artist, genre, folder, unlockType, label, packItemId, listed}`。`packItemId` は楽曲パックの商品ID（解禁データの +0xC、`I1800001`〜。パックで売っている曲＝解禁種別 Sub だけ、ほかは null）。`label` は本家の `customtypes.txt` のラベル（2026-03 以降のパックは無い）。`listed` が false の曲はゲームの解禁データに無く、選曲画面に表示されない（BIT 等で解禁できる「未解禁」とは別。2026101400 では IIDX RED Ending (Ryu☆Remix)・Seven Times Four の2曲。クライアントでは NOT DISPLAYED）。`id` は5桁ゼロ埋め、`folder` はバージョンフォルダ番号（0 = 1st style、1 = substream、80 = INFINITAS）
+- songs: `{id, title, title2, artist, genre, folder, unlockType, label, packItemId, titleReading, artistReading, listed}`。`titleReading` / `artistReading` は曲名・アーティストの読み（カタカナ。ゲームの並び替え用の表 `Api/SongReadings.cs`。選曲画面のフォルダの中はこの順。表に無い4曲と、読めなかったときは null。読めなかったときは選曲画面に戻るたびに数回読み直し、`status.dataWarnings` に `readings` が出る）。`packItemId` は楽曲パックの商品ID（解禁データの +0xC、`I1800001`〜。パックで売っている曲＝解禁種別 Sub だけ、ほかは null）。`label` は本家の `customtypes.txt` のラベル（2026-03 以降のパックは無い）。`listed` が false の曲はゲームの解禁データに無く、選曲画面に表示されない（BIT 等で解禁できる「未解禁」とは別。2026101400 では IIDX RED Ending (Ryu☆Remix)・Seven Times Four の2曲。クライアントでは NOT DISPLAYED）。`id` は5桁ゼロ埋め、`folder` はバージョンフォルダ番号（0 = 1st style、1 = substream、80 = INFINITAS）
 - charts: `{songId, difficulty, level, notes, bpm}`。`difficulty` は `SPB` `SPN` `SPH` `SPA` `SPL` `DPB` `DPN` `DPH` `DPA` `DPL`
 - scores: `{songId, difficulty, unlocked, lamp, grade, exScore, missCount, pGreat, great, bad, poor, clearCount, playCount}`。`clearCount` / `playCount` はゲームが持っているクリア回数・プレー回数（自己ベストのハッシュマップの +0x28 / +0x2C。選曲画面に戻るたびに読み直し、変わっていれば `scoresRevision` が増える）。
   `lamp` は `NP` `F` `AC` `EC` `NC` `HC` `EX` `FC` `PFC`。`pGreat` 〜 `poor` は Reflux が記録したプレーで自己ベストと一致したときだけ値が入る（ゲームは保存していない）
@@ -189,7 +189,7 @@ curl -X PUT "$A/settings" -d '{"unlockCheckSeconds":-1,"trackerTsv":"onChange","
 | `GET /api/layout/preview?struct=…&start=…&count=…` | 使用中の配置で、その構造体をメモリから読んだ結果 |
 | `POST /api/layout/preview?struct=…` | 本文（`PUT` と同じ形式）の配置で試し読みする。**保存しない** |
 
-- `struct` は `song`（既定）、`unlock`、`scoreMap`、`playData`、`judge`、`settings`、`currentSong`、`gameState`、`clearRate`、`rival`
+- `struct` は `song`（既定）、`unlock`、`scoreMap`、`playData`、`judge`、`settings`、`currentSong`、`gameState`、`clearRate`、`rival`、`reading`（曲の読み。`songs=02000,32044` でその曲だけ）
 - `start` は読み始めるアドレス式。既定は構造体に対応するオフセット（`song` なら `songList`）
 - `count` は先頭から返す件数（`song` / `unlock` / `scoreMap`。既定 5、最大 500）
 - `song` / `unlock` / `scoreMap` は全件を読んで `summary` にチェック結果を返す（`unlock` は楽曲パックの数 `packItemIds`（2026101400 で 46）と、Sub 以外なのに商品IDがある曲の数 `packSongsNotSub`（0 のはず）も返す）。`summary.looksValid` が `true` なら配置はたぶん正しい。
@@ -236,6 +236,8 @@ curl -X PUT "$A/settings" -d '{"unlockCheckSeconds":-1,"trackerTsv":"onChange","
   },
   "rival": { "spData": "0x25D0FC0", "dpData": "0x25D0FC8", "begin": "0x0", "end": "0x8" },
   "player": { "infinitasId": "0x25D0ED4" },
+  "reading": { "vector": "0x2908798", "entrySize": "0x88", "id": "0x0", "artistReading": "0x8", "titleReading": "0x28", "searchKey": "0x48", "artistKey": "0x68",
+    "stringLength": "0x10", "stringCapacity": "0x18" },
   "masters": { "difficulty": "0x527AB8", "difficultyCount": "0x5", "lamp": "0x5A8F40", "lampCount": "0x8", "grade": "0x52E7F0", "gradeCount": "0x13",
     "playSide": "0x52E888", "playSideCount": "0x3", "graphTarget": "0x52E8A0", "graphTargetCount": "0x14",
     "pref": "0x6EA958", "prefCount": "0x36", "prefEntrySize": "0x18", "prefName": "0x0", "prefImage": "0x8", "prefId": "0x10",
@@ -248,6 +250,7 @@ curl -X PUT "$A/settings" -d '{"unlockCheckSeconds":-1,"trackerTsv":"onChange","
 |---|---|
 | `song` | 曲リストの1曲分。`entrySize` ごとに次の曲が並び、先頭4バイトが 0 の曲で終わる。文字列は最初の NUL まで、`encoding` は `utf16` / `sjis` / `utf8`。`folder` は1バイト、`levels` は10バイト、`bpm` は (最大, 最小) の int32 が10組、`notes` は int32 が10個（どれも SPB〜DPL の順） |
 | `unlock` | 解禁データの1曲分。曲ID が 0 の要素で終わる。`unlocks` は譜面ごとのビット（bit0 = SPB 〜 bit9 = DPL） |
+| `reading` | 曲の読みの表。bm2dx ベース + `vector` に `{begin, end}`、その間に `entrySize` ごとに曲リストと同じ順で並ぶ（読みの無い曲は曲ID 0）。文字列は MSVC の `std::string`（`stringCapacity` が 15 を超えると先頭8バイトがヒープへのポインタ）。`searchKey` / `artistKey` は返さない |
 | `scoreMap` | 自己ベストのハッシュマップ。`nullNode` / `bucketsStart` / `bucketsEnd` は `dataMap` からの位置（8バイトのポインタ）、残りはノード内の位置。`difficulty` は 0〜4（B〜L）、`playType` は 0 SP / 1 DP |
 | `playData` | リザルトのプレーデータ。`difficulty` は 0〜9（SPB〜DPL） |
 | `judge` | 判定数。P1 側と P2 側が別々で、Reflux が合算する |

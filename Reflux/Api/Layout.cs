@@ -485,7 +485,7 @@ namespace Reflux.Api
             {
                 if (rd.EntrySize < 0x10 || rd.EntrySize > 0x1000) { return "reading.entrySize must be 0x10..0x1000"; }
                 return CheckInside("reading", rd.EntrySize, ("id", rd.Id, 4), ("artistReading", rd.ArtistReading, 0x20), ("titleReading", rd.TitleReading, 0x20),
-                    ("searchKey", rd.SearchKey, 0x20), ("artistEnglish", rd.ArtistEnglish, 0x20));
+                    ("searchKey", rd.SearchKey, 0x20), ("artistKey", rd.ArtistKey, 0x20));
             }
             if (target is ScoreMapLayout m)
             {
@@ -873,7 +873,7 @@ namespace Reflux.Api
                     looksValid = readings.Count >= 100 && missingTitle < readings.Count / 10,
                 },
                 songs = readings.Where(kv => watch.Count == 0 || watch.Contains(kv.Key)).Take(watch.Count > 0 ? 500 : count)
-                    .Select(kv => new { id = kv.Key, titleReading = kv.Value.Title, artistReading = kv.Value.Artist, artistEnglish = kv.Value.ArtistEnglish }),
+                    .Select(kv => new { id = kv.Key, titleReading = kv.Value.Title, artistReading = kv.Value.Artist }),
             };
         }
 

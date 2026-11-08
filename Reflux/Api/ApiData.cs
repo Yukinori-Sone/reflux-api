@@ -27,8 +27,6 @@ namespace Reflux.Api
         public string TitleReading { get; set; }
         /// <summary>Artist reading in katakana</summary>
         public string ArtistReading { get; set; }
-        /// <summary>Artist in upper-case latin letters</summary>
-        public string ArtistEnglish { get; set; }
         /// <summary>False when the song is missing from the game's unlock data: it isn't shown on song select at all
         /// (unlike a locked song, which is shown greyed out and can be unlocked)</summary>
         public bool Listed { get; set; }
@@ -96,7 +94,6 @@ namespace Reflux.Api
                     PackItemId = packs.TryGetValue(song.ID, out var pack) ? pack : null,
                     TitleReading = readings.TryGetValue(song.ID, out var reading) ? reading.Title : null,
                     ArtistReading = reading?.Artist,
-                    ArtistEnglish = reading?.ArtistEnglish,
                 });
                 for (int i = 0; i < song.level.Length; i++)
                 {
