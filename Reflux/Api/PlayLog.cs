@@ -155,5 +155,34 @@ namespace Reflux.Api
                 return null;
             }
         }
+
+        static readonly Regex DjNamePattern = new Regex(@"^[\x21-\x7E]{1,8}$");
+
+        /// <summary>
+        /// DJ NAME of the logged-in player from the profile (PlayerLayout.Profile), null when the profile isn't the player's
+        /// (not loaded yet, or the layout moved). Main loop thread only
+        /// </summary>
+        public static string ReadDjName(string infinitasId)
+        {
+            if (infinitasId == null) { return null; }
+            try
+            {
+                var pid = ApiState.ProcessId;
+                if (pid == null) { return null; }
+                long moduleBase = (long)Process.GetProcessById(pid.Value).MainModule.BaseAddress;
+                var p = Layout.Player;
+                var copy = Encoding.ASCII.GetString(Utils.ReadRaw(moduleBase + p.Profile, 13));
+                if (copy != infinitasId) { return null; }
+                var raw = Utils.ReadRaw(moduleBase + p.Profile + p.ProfileDjName, 8);
+                int n = Array.IndexOf(raw, (byte)0);
+                var name = Encoding.ASCII.GetString(raw, 0, n < 0 ? raw.Length : n);
+                return DjNamePattern.IsMatch(name) ? name : null;
+            }
+            catch (Exception e)
+            {
+                Utils.Except(e, "PlayerDjName");
+                return null;
+            }
+        }
     }
 }

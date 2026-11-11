@@ -47,6 +47,8 @@ namespace Reflux.Api
         public string OffsetsVersion { get; set; }
         /// <summary>INFINITAS ID of the logged-in player ("C" + 12 digits), null until read</summary>
         public string InfinitasId { get; set; }
+        /// <summary>DJ NAME of the logged-in player, null until read (the game loads the profile a little after the login)</summary>
+        public string DjName { get; set; }
         /// <summary>False if play state marker wasn't found, play results can't be recorded then</summary>
         public bool PlayStateDetection { get; set; }
         /// <summary>songSelect / playing / resultScreen, null when not attached</summary>
@@ -170,6 +172,7 @@ namespace Reflux.Api
                     status.ProcessId = null;
                     status.GameVersion = null;
                     status.InfinitasId = null;
+                    status.DjName = null;
                     status.GameState = null;
                     dataWarnings.Clear();
                     status.DataWarnings = new List<string>();
@@ -197,11 +200,25 @@ namespace Reflux.Api
             CoreSettings.MarkTrackerChanged(); /* Write tracker.tsv once after attaching, whatever the mode */
             lock (sync) { rivalsLoaded = false; readyAt = DateTime.UtcNow; } /* Read rivals again after (re)attaching */
             var infinitasId = Player.ReadInfinitasId(); /* The pass can be switched between INFINITAS starts */
-            lock (sync) { status.InfinitasId = infinitasId; }
+            var djName = Player.ReadDjName(infinitasId);
+            lock (sync) { status.InfinitasId = infinitasId; status.DjName = djName; }
             if (infinitasId != null) { PlayLog.ImportSessionsOnce(infinitasId); }
             SetGameState(GameState.songSelect); /* The main loop starts from songSelect and only reports changes */
             SetAttachState(AttachState.Ready, playStateDetection ? null : "Play state marker not found, play results are not recorded");
         }
+        /// <summary>The DJ NAME when it wasn't there at attach time (the profile is loaded after the login)</summary>
+        static void RetryDjName()
+        {
+            string id;
+            lock (sync)
+            {
+                if (status.DjName != null || status.InfinitasId == null) { return; }
+                id = status.InfinitasId;
+            }
+            var name = Player.ReadDjName(id);
+            if (name != null) { lock (sync) { status.DjName = name; } }
+        }
+
         public static void SetGameState(GameState state)
         {
             CurrentChartDto current = null;
@@ -237,6 +254,7 @@ namespace Reflux.Api
                 CoreSettings.OnSongSelect();
                 if (PlayCounts.Refresh()) { PublishScores(); } /* The game updates clear / play counts after every play */
                 ClearRates.Refresh(); /* Server statistics may have been updated while playing */
+                RetryDjName();
                 if (SongReadings.ShouldRetry()) { PublishSongs(); } /* The reading table wasn't there yet when the songs were published */
                 bool loaded;
                 lock (sync) { loaded = rivalsLoaded; }

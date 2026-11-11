@@ -213,6 +213,13 @@ namespace Reflux.Api
     public class PlayerLayout
     {
         public int InfinitasId = 0x25D1ED4;
+        /// <summary>
+        /// The player's profile in the bm2dx image (found 2026-11-11 on 2026111100, after the game version string): a copy of the
+        /// INFINITAS ID (13 characters + NUL), then the DJ NAME (ASCII, up to 6 characters, NUL padded). The DJ NAME is used only when
+        /// the copy matches the ID above
+        /// </summary>
+        public int Profile = 0x699D40;
+        public int ProfileDjName = 0xE;
     }
 
     public class StructLayouts

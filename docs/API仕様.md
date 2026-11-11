@@ -61,6 +61,7 @@
 | `processId` | bm2dx のプロセス ID |
 | `gameVersion` / `offsetsVersion` | ゲームのバージョン / `offsets.txt` のバージョン（`P2D:J:B:A:yyyymmddnn`） |
 | `infinitasId` | ログイン中のプレイヤーの INFINITAS ID（`C` ＋ 12 桁。画面表示の `C-1234-5678-9012` のハイフン無し）。アタッチのたびに読む（e-amusement パスを切り替えると変わる）。読めなければ `null` |
+| `djName` | ログイン中のプレイヤーの DJ NAME（`layout.json` の `player.profile`。プロフィールの ID がログイン中の ID と一致するときだけ。ログイン直後はまだ無いことがあり、選曲画面に戻るたびに読み直す）。読めなければ `null` |
 | `playStateDetection` | プレー中の判定用マーカーが見つかったか |
 | `gameState` | `starting` / `songSelect` / `playing` / `resultScreen`（アタッチするまでは `null`）。`starting` はアタッチ直後、ゲームがサーバーからデータを受け取り終わるまで（一番遅いライバルがそろうまで、最長2分）。`songSelect` は本家の名前のままで、タイトル・モード選択・選曲画面などのメニュー画面すべて（表示は「メニュー画面」） |
 | `currentChart` | `{songId, title, difficulty}`。選曲中・プレー中の譜面 |
@@ -236,7 +237,7 @@ curl -X PUT "$A/settings" -d '{"unlockCheckSeconds":-1,"trackerTsv":"onChange","
     "nodeSize": "0x30", "left": "0x0", "parent": "0x8", "right": "0x10", "isNil": "0x19", "song": "0x1C", "difficulty": "0x20", "rate": "0x24"
   },
   "rival": { "spData": "0x25D1FC0", "dpData": "0x25D1FC8", "begin": "0x0", "end": "0x8" },
-  "player": { "infinitasId": "0x25D1ED4" },
+  "player": { "infinitasId": "0x25D1ED4", "profile": "0x699D40", "profileDjName": "0xE" },
   "reading": { "vector": "0x2909728", "entrySize": "0x88", "id": "0x0", "artistReading": "0x8", "titleReading": "0x28", "searchKey": "0x48", "artistKey": "0x68",
     "stringLength": "0x10", "stringCapacity": "0x18" },
   "masters": { "difficulty": "0x527AB8", "difficultyCount": "0x5", "lamp": "0x5A9FB0", "lampCount": "0x8", "grade": "0x52E7F0", "gradeCount": "0x13",
@@ -258,7 +259,7 @@ curl -X PUT "$A/settings" -d '{"unlockCheckSeconds":-1,"trackerTsv":"onChange","
 | `settings` | オプション。P2 側の値は `p2Offset` 先にある |
 | `clearRate` | 全国クリアレート。`spMap` / `dpMap` は **bm2dx のベースアドレスからの位置**で、そこにオブジェクト（仮想関数表 `0x1404E5D70`, head ノード, 件数）へのポインタがある。中身は MSVC の `std::map`（赤黒木）で、head の parent が根。ノードは left / parent / right、`isNil`（head なら 0 以外）、曲ID、譜面 0〜4（B〜L）、クリアレート × 100（無ければ -1） |
 | `rival` | ライバル。`spData` / `dpData` は **bm2dx のベースアドレスからの位置**で、そこに `GetRivalInfo` の応答（展開した KBin）を入れたバッファ `{begin, end}` へのポインタがある。バッファの中から `[長さ][人数]` に続く ID（`C` + 12桁）を探し、そこからビッグエンディアンで読む（`Api/Rivals.cs` の説明を参照）。1人分は ID・DJ NAME・店舗名（長さ付き文字列）、県・SP段位・DP段位、曲ごとに 52 バイト（曲ID、`00000014`、EX ×5、`00000014`、ランプ ×5） |
-| `player` | ログイン中のプレイヤー。`infinitasId` は **bm2dx のベースアドレスからの位置**で、`C` + 12桁の INFINITAS ID がある。直後はログイントークンなので、13文字より先は読まない |
+| `player` | ログイン中のプレイヤー。`infinitasId` は **bm2dx のベースアドレスからの位置**で、`C` + 12桁の INFINITAS ID がある。直後はログイントークンなので、13文字より先は読まない。`profile` は bm2dx 内のプロフィール（INFINITAS ID の写し 13 文字 + NUL、`profileDjName` の位置に DJ NAME（ASCII、0 埋め））。2026111100 で見つけた（ゲームのバージョン文字列の後ろ） |
 | `masters` | `/api/masters` の exe の表。位置は **bm2dx のベースアドレスからの位置**。`difficulty` など画像名の表は8バイトのポインタが件数分並ぶ。`pref` / `folder` は1件 `*EntrySize` バイトで、各項目の位置を指定する。探し方は `docs/INFINITAS動作.md` の「定数」。`GET /api/layout/preview?struct=masters` で試せる |
 | `gameState` | `judgeData + markerSearchStart` から `markerSearchLength` バイトの中で、10000 を超える値が8バイト間隔で3つ並ぶ所を探し、2つ目から `markerFromMagic` 先をプレー中マーカー（0 以外でプレー中）にする。選曲画面マーカーは `playSettings + songSelectMarker`（1 で選曲画面。プレー後にだけ見る） |
 
