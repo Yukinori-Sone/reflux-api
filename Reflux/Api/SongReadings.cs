@@ -14,7 +14,7 @@ namespace Reflux.Api
     public class ReadingLayout
     {
         /// <summary>Position of the vector { begin, end } relative to the bm2dx module base</summary>
-        public int Vector = 0x2908798;
+        public int Vector = 0x2909728; /* 2026111100 (2026101400: 0x2908798) */
         public int EntrySize = 0x88;
         /// <summary>Song ID, int32 (0 for an empty entry)</summary>
         public int Id = 0x0;

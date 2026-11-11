@@ -170,13 +170,14 @@ namespace Reflux.Api
     /// <summary>
     /// Clear rates of every player (server statistics, rate × 100, -1 when there is none), SP and DP in separate MSVC std::map trees.
     /// bm2dx base + spMap / dpMap holds a pointer to an object { vtable, head node*, size }. Tree node offsets are relative to the node.
-    /// Defaults for 2026101400: object vtable 0x1404E5D70 (search the heap for it when the static pointer moves).
+    /// Defaults for 2026111100 (2026101400: 0x25D0FA0 / 0x25D0FA8). On 2026101400 the object vtable was 0x1404E5D70 (search the heap
+    /// for it when the static pointer moves).
     /// </summary>
     public class ClearRateLayout
     {
         /// <summary>Position of the pointer to the SP object, relative to the bm2dx module base</summary>
-        public int SpMap = 0x25D0FA0;
-        public int DpMap = 0x25D0FA8;
+        public int SpMap = 0x25D1FA0;
+        public int DpMap = 0x25D1FA8;
         public int ObjectHead = 0x8;
         public int ObjectSize = 0x10;
         public int NodeSize = 0x30;
@@ -193,24 +194,25 @@ namespace Reflux.Api
 
     /// <summary>
     /// Rival scores (GetRivalInfo response). bm2dx base + spData / dpData holds a pointer to a vector { begin, end } of the
-    /// decoded response; the rival data inside is parsed by its own big endian format (see Rivals.cs). Defaults for 2026101400.
+    /// decoded response; the rival data inside is parsed by its own big endian format (see Rivals.cs). Defaults for 2026111100
+    /// (2026101400: 0x25D0FC0 / 0x25D0FC8).
     /// </summary>
     public class RivalLayout
     {
         /// <summary>Position of the pointer to the SP vector, relative to the bm2dx module base</summary>
-        public int SpData = 0x25D0FC0;
-        public int DpData = 0x25D0FC8;
+        public int SpData = 0x25D1FC0;
+        public int DpData = 0x25D1FC8;
         public int Begin = 0x0;
         public int End = 0x8;
     }
 
     /// <summary>
     /// Logged-in player. bm2dx base + infinitasId is the INFINITAS ID string ("C" + 12 digits) of the current login
-    /// (2026101400: 0x1425D0ED4). A login token follows it: only the 13 ID characters are ever read.
+    /// (2026111100: 0x1425D1ED4, 2026101400: 0x1425D0ED4). A login token follows it: only the 13 ID characters are ever read.
     /// </summary>
     public class PlayerLayout
     {
-        public int InfinitasId = 0x25D0ED4;
+        public int InfinitasId = 0x25D1ED4;
     }
 
     public class StructLayouts

@@ -7,7 +7,7 @@ using System.Text;
 namespace Reflux.Api
 {
     /// <summary>
-    /// Constant tables in the bm2dx image (positions relative to the module base, defaults for 2026101400, see
+    /// Constant tables in the bm2dx image (positions relative to the module base, defaults for 2026111100, see
     /// docs/INFINITAS動作.md "定数"). Most tables only hold image names: display names come from the built-in maps in
     /// Masters, matched by image name, so a table that moved or changed shows up as unknown images.
     /// </summary>
@@ -17,7 +17,7 @@ namespace Reflux.Api
         public int Difficulty = 0x527AB8;
         public int DifficultyCount = 5;
         /// <summary>Pointers to image names: clear lamps (clear_noplay ..), 8</summary>
-        public int Lamp = 0x5A8F40;
+        public int Lamp = 0x5A9FB0; /* 2026101400: 0x5A8F40 */
         public int LampCount = 8;
         /// <summary>Pointers to image names: dan grades (gr_d_7kyu ..), 19</summary>
         public int Grade = 0x52E7F0;
@@ -29,14 +29,14 @@ namespace Reflux.Api
         public int GraphTarget = 0x52E8A0;
         public int GraphTargetCount = 20;
         /// <summary>Prefectures: entrySize bytes each, pointer to the Shift-JIS name, pointer to the image name, id (s64)</summary>
-        public int Pref = 0x6EA958;
+        public int Pref = 0x6EB968; /* 2026101400: 0x6EA958 */
         public int PrefCount = 54;
         public int PrefEntrySize = 0x18;
         public int PrefName = 0x0;
         public int PrefImage = 0x8;
         public int PrefId = 0x10;
         /// <summary>Song select folders: entrySize bytes each, kind (u32), pointers to image names, category voice (u64)</summary>
-        public int Folder = 0x6944B0;
+        public int Folder = 0x6954C0; /* 2026101400: 0x6944B0 */
         public int FolderCount = 170;
         public int FolderEntrySize = 0x38;
         public int FolderKind = 0x0;

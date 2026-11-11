@@ -232,17 +232,17 @@ curl -X PUT "$A/settings" -d '{"unlockCheckSeconds":-1,"trackerTsv":"onChange","
   "currentSong": { "song": "0x0", "difficulty": "0x4" },
   "gameState": { "markerSearchStart": "0x90", "markerSearchLength": "0x60", "markerFromMagic": "0x18", "songSelectMarker": "-0x18" },
   "clearRate": {
-    "spMap": "0x25D0FA0", "dpMap": "0x25D0FA8", "objectHead": "0x8", "objectSize": "0x10",
+    "spMap": "0x25D1FA0", "dpMap": "0x25D1FA8", "objectHead": "0x8", "objectSize": "0x10",
     "nodeSize": "0x30", "left": "0x0", "parent": "0x8", "right": "0x10", "isNil": "0x19", "song": "0x1C", "difficulty": "0x20", "rate": "0x24"
   },
-  "rival": { "spData": "0x25D0FC0", "dpData": "0x25D0FC8", "begin": "0x0", "end": "0x8" },
-  "player": { "infinitasId": "0x25D0ED4" },
-  "reading": { "vector": "0x2908798", "entrySize": "0x88", "id": "0x0", "artistReading": "0x8", "titleReading": "0x28", "searchKey": "0x48", "artistKey": "0x68",
+  "rival": { "spData": "0x25D1FC0", "dpData": "0x25D1FC8", "begin": "0x0", "end": "0x8" },
+  "player": { "infinitasId": "0x25D1ED4" },
+  "reading": { "vector": "0x2909728", "entrySize": "0x88", "id": "0x0", "artistReading": "0x8", "titleReading": "0x28", "searchKey": "0x48", "artistKey": "0x68",
     "stringLength": "0x10", "stringCapacity": "0x18" },
-  "masters": { "difficulty": "0x527AB8", "difficultyCount": "0x5", "lamp": "0x5A8F40", "lampCount": "0x8", "grade": "0x52E7F0", "gradeCount": "0x13",
+  "masters": { "difficulty": "0x527AB8", "difficultyCount": "0x5", "lamp": "0x5A9FB0", "lampCount": "0x8", "grade": "0x52E7F0", "gradeCount": "0x13",
     "playSide": "0x52E888", "playSideCount": "0x3", "graphTarget": "0x52E8A0", "graphTargetCount": "0x14",
-    "pref": "0x6EA958", "prefCount": "0x36", "prefEntrySize": "0x18", "prefName": "0x0", "prefImage": "0x8", "prefId": "0x10",
-    "folder": "0x6944B0", "folderCount": "0xAA", "folderEntrySize": "0x38", "folderKind": "0x0", "folderGroupImage": "0x10",
+    "pref": "0x6EB968", "prefCount": "0x36", "prefEntrySize": "0x18", "prefName": "0x0", "prefImage": "0x8", "prefId": "0x10",
+    "folder": "0x6954C0", "folderCount": "0xAA", "folderEntrySize": "0x38", "folderKind": "0x0", "folderGroupImage": "0x10",
     "folderImage": "0x18", "folderImage2": "0x20", "folderImage3": "0x28", "folderVoice": "0x30" }
 }
 ```
