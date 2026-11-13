@@ -393,7 +393,8 @@ namespace Reflux.Api
                     int? miss = play.MissCountValid ? (int)play.MissCount : (int?)null;
                     var prev = play.Unsaved ? null : PlayCounts.PrevBest(play.Chart.songid, play.Chart.difficulty.ToString());
                     PlayLog.Append(form, id, miss, prev);
-                    if (!play.PrematureEnd && !play.Unsaved) { PlayCounts.Merge(play.Chart.songid, play.Chart.difficulty.ToString(), play.Lamp, play.ExScore, miss); }
+                    /* A play ended prematurely still raises the game's EX score / lamp (miss is null for it); not one the game doesn't keep */
+                    if (!play.Unsaved) { PlayCounts.Merge(play.Chart.songid, play.Chart.difficulty.ToString(), play.Lamp, play.ExScore, miss); }
                 }
                 lock (sync)
                 {
