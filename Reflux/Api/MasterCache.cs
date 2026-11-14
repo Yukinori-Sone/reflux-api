@@ -10,6 +10,9 @@ namespace Reflux.Api
     /// masters-cache.json: the last master tables read from the game (exe tables, and the song / chart / series / pack tables),
     /// so GET /api/masters still answers while INFINITAS isn't running. Most of them only change with an INFINITAS update.
     /// A table is written only when its content changed (not on every read), with the time and game version it was read at.
+    /// The file is written again when it was deleted or changed from outside (a broken file is ignored when loading and replaced
+    /// at the next save). Callers save only tables they trust (see Masters.GetJson / MasterTables.Json): a table read while the
+    /// game doesn't match (after an INFINITAS update) must not replace the last good one.
     /// </summary>
     static class MasterCache
     {
@@ -18,6 +21,8 @@ namespace Reflux.Api
         static Dictionary<string, Masters.Master> tables;
         /// <summary>JSON of the cached tables as returned (cached = true), made once per table: the song table is about 1 MB</summary>
         static readonly Dictionary<string, string> json = new Dictionary<string, string>();
+        /// <summary>Length and time of the file as last written or read, to notice it was deleted or changed</summary>
+        static (long length, DateTime time) fileState;
 
         static Dictionary<string, Masters.Master> Tables()
         {
@@ -28,7 +33,8 @@ namespace Reflux.Api
                 if (File.Exists(FileName))
                 {
                     var list = JsonConvert.DeserializeObject<List<Masters.Master>>(File.ReadAllText(FileName), ApiState.JsonSettings);
-                    foreach (var m in list ?? new List<Masters.Master>()) { if (m?.Key != null) { tables[m.Key] = m; } }
+                    foreach (var m in list ?? new List<Masters.Master>()) { if (m?.Key != null && m.Columns != null && m.Rows != null) { tables[m.Key] = m; } }
+                    fileState = State();
                 }
             }
             catch (Exception e)
@@ -36,6 +42,12 @@ namespace Reflux.Api
                 Console.WriteLine($"[API] {FileName} can't be read, starting without it: {e.Message}");
             }
             return tables;
+        }
+
+        static (long, DateTime) State()
+        {
+            var f = new FileInfo(FileName);
+            return f.Exists ? (f.Length, f.LastWriteTimeUtc) : (-1, default);
         }
 
         /// <summary>The table content without the time it was read, to tell whether it changed</summary>
@@ -56,22 +68,29 @@ namespace Reflux.Api
                 bool changed = false;
                 foreach (var m in fresh.Where(m => m.Warning == null && m.Rows.Count > 0))
                 {
-                    if (t.TryGetValue(m.Key, out var old) && Content(old) == Content(m)) { continue; }
+                    if (t.TryGetValue(m.Key, out var old) && (ReferenceEquals(old, m) || Content(old) == Content(m))) { continue; }
                     t[m.Key] = m;
                     json.Remove(m.Key);
                     changed = true;
                 }
-                if (!changed) { return; }
+                if (!changed && (t.Count == 0 || State() == fileState)) { return; } /* Also rewrite a deleted or changed file */
                 try
                 {
                     File.WriteAllText(FileName + ".tmp", JsonConvert.SerializeObject(t.Values.OrderBy(m => m.Key).ToList(), ApiState.JsonSettings));
                     File.Move(FileName + ".tmp", FileName, true);
+                    fileState = State();
                 }
                 catch (Exception e)
                 {
                     Console.WriteLine($"[API] {FileName} can't be written: {e.Message}");
                 }
             }
+        }
+
+        /// <summary>Row count of the cached table, -1 when there is none</summary>
+        public static int CachedRows(string key)
+        {
+            lock (sync) { return Tables().TryGetValue(key, out var m) ? m.Rows.Count : -1; }
         }
 
         /// <summary>JSON of the last table read from the game, marked as cached (cached = true), or null</summary>

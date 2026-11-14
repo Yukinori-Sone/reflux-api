@@ -179,7 +179,9 @@ namespace Reflux.Api
                 var now = DateTime.UtcNow;
                 var version = ApiState.GameVersion;
                 foreach (var m in exe.Where(m => openError == null && m.Rows.Count > 0)) { m.ReadAt = now; m.GameVersion = version; }
-                MasterCache.Save(exe);
+                /* Keep only tables read while the game matches (ready: offsets and song list checked) and without a warning (unknown
+                   image names = the table moved or changed with an INFINITAS update): the last good tables stay otherwise */
+                if (openError == null && ApiState.IsReady) { MasterCache.Save(exe); }
                 foreach (var m in exe)
                 {
                     /* Not attached (or nothing read): the last table read, when there is one */

@@ -163,6 +163,10 @@ namespace Reflux.Api
         }
 
         #region Writers (main loop)
+        /// <summary>Attached with matching offsets and a song list that passed the check (data read now can be trusted)</summary>
+        public static bool IsReady { get { lock (sync) { return status.AttachState == AttachState.Ready; } } }
+        /// <summary>Whether a kind of data (readings, clearRates, ...) currently can't be read</summary>
+        public static bool HasDataWarning(string what) { lock (sync) { return dataWarnings.Contains(what); } }
         public static void SetAttachState(AttachState state, string message = null)
         {
             lock (sync)

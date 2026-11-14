@@ -140,7 +140,13 @@ curl -X PUT "$A/settings" -d '{"unlockCheckSeconds":-1,"trackerTsv":"onChange","
 - `{gameVersion, readAt, masters: [{key, name, source, address, note, warning, readAt, gameVersion, cached, columns: [{key, header, numeric}], rows: [{<列のkey>: 値}]}]}`
 - 一番外の `gameVersion` / `readAt` は、今つながっているゲームのバージョン（未接続なら null）とレスポンスを作った時刻。表ごとの `readAt` / `gameVersion` は、その表の中身をゲームから読んだ時刻（UTC）とそのときのゲームのバージョン（Reflux 側の定義の表は null）
 - `cached`: `true` なら INFINITAS が起動していない（または Reflux の起動後まだ曲リストを読んでいない）ので、最後に読めた表（実行フォルダの `masters-cache.json`）を返している。`readAt` / `gameVersion` はそのときのもの。一度も読めていなければ `cached` は `false` で、行が空で `warning` が付く
-- `masters-cache.json` には、ゲームから警告なしに読めた表（exe の表と、曲・譜面・シリーズ・楽曲パック）を、中身が変わったときだけ書く（毎回は書かない）。ほとんどは INFINITAS の更新でしか変わらない。譜面の表は全国クリアレートを含むので、クリアレートが変わると書き直す（2MB 前後）。消しても次に読めたときに作り直す
+- `masters-cache.json` には、ゲームから警告なしに読めた表（exe の表と、曲・譜面・シリーズ・楽曲パック）を、中身が変わったときだけ書く（毎回は書かない）。ほとんどは INFINITAS の更新でしか変わらない。譜面の表は全国クリアレートを含むので、クリアレートが変わると書き直す（2MB 前後）
+- 消された・外から書き換えられた（壊れた）ときは、INFINITAS が起動していれば次の `/api/masters` で作り直す（ファイルの大きさと更新時刻で気づく。読めない表は読み込み時に捨てる）
+- 前回の正常なキャッシュを壊さないよう、次のときは書かない（表はそのとき読めた内容で返し、キャッシュは前のまま）
+  - コアが `ready` でない（オフセット不一致 `offsetMismatch`、曲リストの形が合わない `layoutMismatch`、読み込み中など。INFINITAS の更新直後）
+  - その表に `warning` がある（exe の表に知らない画像名がある＝表が動いたか中身が変わった）
+  - 曲の表: 曲の読みが読めない（`dataWarnings` に `readings`）。キャッシュより曲数が1割以上少ない（読み方がおかしい可能性。コンソールに出す）
+  - 譜面の表: 全国クリアレートがまだ無い・読めない（`clearRates`）
 - `source`: `exe`（ゲームの exe の中の表から今読んだもの）／`reflux`（Reflux 側の定義。ゲームに表が無いか、まだ見つけていないもの）
 - `warning`: ゲームに未接続で読めないとき、または知らない画像名があるとき（表の位置や並びが変わった可能性）
 - 表示名を文字で持っているのは都道府県だけで、ほかは画像名しか無い。名前は画像名から Reflux が付けている（`Api/Masters.cs`）

@@ -49,6 +49,7 @@ namespace Reflux.Api
         static readonly object sync = new object();
         static object builtFrom;
         static Dictionary<string, string> built = new Dictionary<string, string>();
+        static List<Masters.Master> builtTables = new List<Masters.Master>();
 
         /// <summary>
         /// JSON of each table (Masters.Master), rebuilt when the songs or clear rates changed. Before Reflux has read the song list
@@ -75,13 +76,33 @@ namespace Reflux.Api
                             m.ReadAt = m.Key == "chart" && ratesAt > songsAt ? ratesAt : songsAt; /* The chart table has the clear rates too */
                             m.GameVersion = version;
                         }
-                        MasterCache.Save(tables);
                     }
+                    builtTables = tables;
                     built = tables.ToDictionary(m => m.Key, m => JsonConvert.SerializeObject(m, ApiState.JsonSettings));
                     builtFrom = key;
                 }
+                MasterCache.Save(Trusted(builtTables, songs.Count, rates.Count)); /* Every request: writes a deleted cache file again */
                 return built;
             }
+        }
+
+        /// <summary>
+        /// The tables that may replace the cached ones. Not while Reflux isn't ready (offsets or song list don't match the game),
+        /// not the song table while the readings can't be read, not the chart table without clear rates (not received yet, or
+        /// unreadable after an update), and none when far fewer songs than cached (a broken read rather than removed songs).
+        /// Called on every request, so a deleted cache file is written again while the game is running
+        /// </summary>
+        static IEnumerable<Masters.Master> Trusted(List<Masters.Master> tables, int songs, int rates)
+        {
+            if (songs == 0 || !ApiState.IsReady) { return Enumerable.Empty<Masters.Master>(); }
+            int cachedSongs = MasterCache.CachedRows("song");
+            if (cachedSongs > 0 && songs < cachedSongs * 0.9)
+            {
+                Console.WriteLine($"[API] masters-cache.json kept: {songs} songs now against {cachedSongs} cached");
+                return Enumerable.Empty<Masters.Master>();
+            }
+            return tables.Where(m => !(m.Key == "song" && ApiState.HasDataWarning("readings")) &&
+                                     !(m.Key == "chart" && (rates == 0 || ApiState.HasDataWarning("clearRates"))));
         }
 
         static Masters.Column C(string key, string header, bool numeric = false) => new Masters.Column { Key = key, Header = header, Numeric = numeric };
