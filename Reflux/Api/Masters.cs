@@ -138,24 +138,51 @@ namespace Reflux.Api
         };
         #endregion
 
-        public static string GetJson()
+        static readonly string[] Order = { "song", "chart", "series", "pack", "mode", "playSide", "difficulty", "lamp", "djLevel", "grade", "pref", "graphTarget", "folder", "unlockType", "option" };
+        static readonly string[] ExeKeys = { "playSide", "difficulty", "lamp", "grade", "pref", "graphTarget", "folder" };
+
+        /// <summary>
+        /// tables: null = the constant tables (exe and Reflux's own, as before), "all" = those and the song / chart / series / pack
+        /// tables (MasterTables), or a comma separated list of keys. The game image is read only when an exe table is asked for
+        /// </summary>
+        public static (int code, string json) GetJson(string tables)
         {
-            var layout = Layout.Current.Masters;
-            var list = new List<Master>();
-            using (var reader = DebugApi.OpenReader(out _, out _, out var openError))
+            var known = Order;
+            HashSet<string> want;
+            if (string.IsNullOrWhiteSpace(tables)) { want = new HashSet<string>(Order.Except(MasterTables.Keys)); }
+            else if (tables.Trim().Equals("all", StringComparison.OrdinalIgnoreCase)) { want = new HashSet<string>(Order); }
+            else
             {
-                list.AddRange(ReadExe(reader, layout, openError));
+                want = new HashSet<string>();
+                foreach (var t in tables.Split(',').Select(t => t.Trim()).Where(t => t.Length > 0))
+                {
+                    var k = known.FirstOrDefault(x => x.Equals(t, StringComparison.OrdinalIgnoreCase));
+                    if (k == null)
+                    {
+                        return (400, JsonConvert.SerializeObject(new { error = "unknown_table", message = $"unknown table {t} (known: all, {string.Join(", ", known)})" }, ApiState.JsonSettings));
+                    }
+                    want.Add(k);
+                }
             }
-            list.AddRange(BuiltIn());
-            var order = new[] { "mode", "playSide", "difficulty", "lamp", "djLevel", "grade", "pref", "graphTarget", "folder", "unlockType", "option" };
-            list = list.OrderBy(m => Array.IndexOf(order, m.Key) is var i && i >= 0 ? i : 99).ToList();
-            return JsonConvert.SerializeObject(new
+            var parts = new List<(string key, string json)>();
+            if (want.Overlaps(ExeKeys))
             {
-                gameVersion = ApiState.GameVersion,
-                readAt = DateTime.UtcNow,
-                masters = list,
-            }, ApiState.JsonSettings);
+                using var reader = DebugApi.OpenReader(out _, out _, out var openError);
+                parts.AddRange(ReadExe(reader, Layout.Current.Masters, openError).Select(m => (m.Key, JsonConvert.SerializeObject(m, ApiState.JsonSettings))));
+            }
+            parts.AddRange(BuiltIn().Select(m => (m.Key, JsonConvert.SerializeObject(m, ApiState.JsonSettings))));
+            if (want.Overlaps(MasterTables.Keys))
+            {
+                parts.AddRange(MasterTables.Json().Select(kv => (kv.Key, kv.Value))); /* Cached JSON: the song table alone is about 1 MB */
+            }
+            var list = parts.Where(p => want.Contains(p.key)).OrderBy(p => Array.IndexOf(Order, p.key) is var i && i >= 0 ? i : 99).Select(p => p.json);
+            var head = JsonConvert.SerializeObject(new { gameVersion = ApiState.GameVersion, readAt = DateTime.UtcNow }, ApiState.JsonSettings);
+            return (200, head.Substring(0, head.Length - 1) + ",\"masters\":[" + string.Join(",", list) + "]}");
         }
+
+        /// <summary>Series (version folder) name, null for a number Reflux doesn't know</summary>
+        public static string SeriesName(int no) => SeriesNames.TryGetValue(no, out var s) ? s : null;
+        public static IEnumerable<int> SeriesNumbers => SeriesNames.Keys;
 
         /// <summary>Tables read from the game image. Without a game every table gets the reason as its warning</summary>
         public static List<Master> ReadExe(DebugApi.MemoryReader r, MastersLayout l, string openError)

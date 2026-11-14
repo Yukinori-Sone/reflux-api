@@ -90,6 +90,10 @@ namespace Reflux.Api
         static readonly List<Dictionary<string, string>> session = new List<Dictionary<string, string>>();
         static CachedJson sessionJson = new CachedJson(new object[0]);
         static CachedJson clearRates = new CachedJson(new ClearRateDto[0]);
+        /* The same data as objects, for the master tables (replaced, never changed in place) */
+        static List<SongDto> songList = new List<SongDto>();
+        static List<ChartDto> chartList = new List<ChartDto>();
+        static List<ClearRateDto> clearRateList = new List<ClearRateDto>();
         static string clearRatesKey = "";
         static CachedJson rivals = new CachedJson(new RivalDto[0]);
         static CachedJson rivalScores = new CachedJson(new RivalScoreDto[0]);
@@ -186,6 +190,11 @@ namespace Reflux.Api
             lock (sync) { status.ProcessId = pid; }
         }
         public static string GameVersion { get { lock (sync) { return status.GameVersion; } } }
+        /// <summary>Songs, charts and clear rates as published (for MasterTables, don't modify)</summary>
+        public static (List<SongDto> songs, List<ChartDto> charts, List<ClearRateDto> rates) MasterSource()
+        {
+            lock (sync) { return (songList, chartList, clearRateList); }
+        }
         public static void SetVersions(string gameVersion, string offsetsVersion)
         {
             lock (sync)
@@ -304,6 +313,7 @@ namespace Reflux.Api
                 if (key == clearRatesKey) { return; }
                 clearRatesKey = key;
                 clearRates = new CachedJson(rates);
+                clearRateList = rates;
                 status.ClearRatesRevision++;
             }
         }
@@ -317,6 +327,8 @@ namespace Reflux.Api
                 {
                     songs = new CachedJson(s);
                     charts = new CachedJson(c);
+                    songList = s;
+                    chartList = c;
                     status.SongsRevision++;
                 }
             }

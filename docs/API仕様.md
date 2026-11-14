@@ -45,6 +45,7 @@
 | `GET /api/rivals` | ゲームに登録したライバル（SP・DP 別に最大5人）。下記 |
 | `GET /api/rivals/scores` | ライバル全員の譜面ごとの EX スコア・ランプ。下記 |
 | `GET /api/settings` | コアの動作設定（下記）の今の値・初期値・選択肢 |
+| `GET /api/masters?tables=...` | マスター・定数の表（曲・譜面・シリーズ・楽曲パックも選べる）。下記 |
 | `PUT /api/settings` | 動作設定を変える。本文に書いた項目だけ変わり、その場で反映して `coresettings.json` に保存する |
 | `POST /api/attach/retry` | 再アタッチを要求する（`202`）。オフセット不一致の待機中や、曲リストの読み込みが進まないときにも効く |
 
@@ -131,6 +132,9 @@ curl -X PUT "$A/settings" -d '{"unlockCheckSeconds":-1,"trackerTsv":"onChange","
 
 マスター・定数の表。INFINITAS の更新で番号や並びが変わることがあるので、毎回ゲームから読み直す（読むのは exe の中の定数表だけで、数 KB）。
 
+- クエリ `tables`: 返す表の key をカンマ区切りで（例 `?tables=song,chart`）。`all` で全部。省略すると下表の定数の表だけ（曲・譜面・シリーズ・楽曲パックは含めない。クライアントの「マスター」タブはこれを使い、曲などは手元の DB から出す）。知らない key は `400`（`unknown_table`）
+- ゲームの exe を読むのは、`source` が `exe` の表を1つでも頼んだときだけ。`?tables=song,chart,series,pack` ならメモリは読まない
+
 - `{gameVersion, readAt, masters: [{key, name, source, address, note, warning, columns: [{key, header, numeric}], rows: [{<列のkey>: 値}]}]}`
 - `source`: `exe`（ゲームの exe の中の表から今読んだもの）／`reflux`（Reflux 側の定義。ゲームに表が無いか、まだ見つけていないもの）
 - `warning`: ゲームに未接続で読めないとき、または知らない画像名があるとき（表の位置や並びが変わった可能性）
@@ -150,7 +154,18 @@ curl -X PUT "$A/settings" -d '{"unlockCheckSeconds":-1,"trackerTsv":"onChange","
 | `unlockType` | 解禁種別 | reflux | ID・名前・内容 |
 | `option` | オプション | reflux | 種類・layout の項目・値・名前 |
 
-曲・譜面・シリーズは `/api/songs` / `/api/charts` の内容なので、ここには含めない（クライアントのマスタータブは手元の DB から出す）。
+`tables` で頼んだときだけ返す表（`source` は `reflux`。ゲームのメモリは読まず、コアが持っている曲・譜面・クリアレートのスナップショットから組み立てる。`Api/MasterTables.cs`）:
+
+| key | 表 | 主な列 |
+|---|---|---|
+| `song` | 曲 | ID・曲名・読み・英字タイトル・アーティスト・読み・ジャンル・シリーズ番号・登場作品・解禁種別・ラベル・楽曲パック（商品ID・名前）・表示（`listed`）・SPB〜DPL のレベル（譜面が無ければ null） |
+| `chart` | 譜面 | 曲ID・曲名・難易度・譜面の種類・レベル・ノーツ数・BPM・全国クリアレート（%、無ければ null） |
+| `series` | シリーズ（登場作品） | ID（バージョンフォルダ番号）・名前・曲数 |
+| `pack` | 楽曲パック | No（選曲画面の並び）・商品ID・名前・フォルダの画像名・曲数・ラベル。名前の無い商品ID は Reflux がまだ知らない新しいパック |
+
+- クライアントのマスタータブの同名の表と同じ内容（クライアントは DB の JOIN で作っている）。違いは、シリーズ名がクライアントでは DB で変えられること、クライアントの曲の表には楽曲パックの名前の列が無いこと
+- 曲データはコアが INFINITAS にアタッチして曲リストを読むまで空（`warning` が付く）。INFINITAS を閉じても、Reflux を再起動するまでは最後に読んだ内容を返す
+- 負荷: ゲームのメモリは読まない。曲・クリアレートが変わったとき（`songsRevision` / `clearRatesRevision`）の最初のリクエストで表を組み立てて JSON にし、以降はそれを返すだけ。曲の表が大きい（約 1900 曲で 1MB 前後）ので、LAN 越しの転送とコアの CPU を少し使う。プレー中・リザルト画面を避けたいなら、`/api/status` の `gameState` が `songSelect` のときに呼ぶ
 
 ## ゲーム更新対応用のエンドポイント（リクエストのたびにメモリを読む／ファイルを書く）
 
