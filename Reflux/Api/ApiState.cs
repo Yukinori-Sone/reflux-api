@@ -62,9 +62,11 @@ namespace Reflux.Api
         public int ClearRatesRevision { get; set; }
         /// <summary>Incremented when /api/rivals and /api/rivals/scores content changes</summary>
         public int RivalsRevision { get; set; }
+        /// <summary>Incremented when /api/downloads content changes</summary>
+        public int DownloadsRevision { get; set; }
         public int SessionPlays { get; set; }
         /// <summary>
-        /// Data the core can't read while attached: rivals, clearRates, playCounts. The struct layout or the static pointers may have
+        /// Data the core can't read while attached: rivals, clearRates, playCounts, downloads. The struct layout or the static pointers may have
         /// moved with an INFINITAS update. Empty when everything is read (replaced, never changed in place)
         /// </summary>
         public List<string> DataWarnings { get; set; } = new List<string>();
@@ -90,12 +92,14 @@ namespace Reflux.Api
         static readonly List<Dictionary<string, string>> session = new List<Dictionary<string, string>>();
         static CachedJson sessionJson = new CachedJson(new object[0]);
         static CachedJson clearRates = new CachedJson(new ClearRateDto[0]);
+        static CachedJson downloads = new CachedJson(new DownloadDto[0]);
+        static string downloadsKey = "";
         /* The same data as objects, for the master tables (replaced, never changed in place) */
         static List<SongDto> songList = new List<SongDto>();
         static List<ChartDto> chartList = new List<ChartDto>();
         static List<ClearRateDto> clearRateList = new List<ClearRateDto>();
-        static DateTime songsAt, clearRatesAt, scoresAt, rivalsAt;
-        static string songsGameVersion, clearRatesGameVersion, scoresGameVersion, rivalsGameVersion;
+        static DateTime songsAt, clearRatesAt, scoresAt, rivalsAt, downloadsAt;
+        static string songsGameVersion, clearRatesGameVersion, scoresGameVersion, rivalsGameVersion, downloadsGameVersion;
         static string clearRatesKey = "";
         static CachedJson rivals = new CachedJson(new RivalDto[0]);
         static CachedJson rivalScores = new CachedJson(new RivalScoreDto[0]);
@@ -211,6 +215,7 @@ namespace Reflux.Api
                     "clearRates" => (clearRatesAt, clearRatesGameVersion),
                     "scores" => (scoresAt, scoresGameVersion),
                     "rivals" => (rivalsAt, rivalsGameVersion),
+                    "downloads" => (downloadsAt, downloadsGameVersion),
                     _ => (default(DateTime), null),
                 };
             }
@@ -292,6 +297,7 @@ namespace Reflux.Api
                 CoreSettings.OnSongSelect();
                 if (PlayCounts.Refresh()) { PublishScores(); } /* The game updates clear / play counts after every play */
                 ClearRates.Refresh(); /* Server statistics may have been updated while playing */
+                Downloads.Refresh(); /* The game downloads a song's data when it is first played */
                 RetryDjName();
                 if (SongReadings.ShouldRetry()) { PublishSongs(); } /* The reading table wasn't there yet when the songs were published */
                 bool loaded;
@@ -348,6 +354,20 @@ namespace Reflux.Api
                 clearRatesAt = DateTime.UtcNow;
                 clearRatesGameVersion = status.GameVersion;
                 status.ClearRatesRevision++;
+            }
+        }
+        /// <summary>Publish the downloaded song data, the revision only changes when a file was added, removed or changed</summary>
+        public static void PublishDownloads(List<DownloadDto> list)
+        {
+            var key = string.Join(";", list.Select(d => $"{d.SongId},{d.Sound},{d.Movie},{d.Graphic},{d.DownloadedAt.Ticks}"));
+            lock (sync)
+            {
+                if (key == downloadsKey) { return; }
+                downloadsKey = key;
+                downloads = new CachedJson(list);
+                downloadsAt = DateTime.UtcNow;
+                downloadsGameVersion = status.GameVersion;
+                status.DownloadsRevision++;
             }
         }
         /// <summary>Publish song and chart data, call after song db and unlock db are loaded</summary>
@@ -494,6 +514,7 @@ namespace Reflux.Api
         public static string ClearRatesJson() { lock (sync) { return clearRates.Json; } }
         public static string RivalsJson() { lock (sync) { return rivals.Json; } }
         public static string RivalScoresJson() { lock (sync) { return rivalScores.Json; } }
+        public static string DownloadsJson() { lock (sync) { return downloads.Json; } }
         #endregion
 
         /// <summary>

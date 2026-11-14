@@ -69,13 +69,14 @@
 | `songsRevision` / `scoresRevision` | 曲データ / 自己ベストを読み直すたびに増える。クライアントはこれが変わったときだけ取り直す |
 | `clearRatesRevision` | クリアレートの値が変わったときだけ増える（0 のうちは未取得） |
 | `rivalsRevision` | ライバルの一覧・スコアが変わったときだけ増える（0 のうちは未取得） |
+| `downloadsRevision` | ダウンロード済みの曲データ（`/api/downloads`）が変わったときだけ増える（0 のうちは未取得） |
 | `sessionPlays` | 今回の起動以降に記録したプレー数 |
-| `dataWarnings` | アタッチ中に読めないデータの種類の配列（`rivals` / `clearRates` / `playCounts`）。INFINITAS の更新で静的ポインタや構造体が動いた可能性。読めれば消える。ライバルはアタッチから2分たつまで出さない（ゲームが受け取り中のことがある） |
+| `dataWarnings` | アタッチ中に読めないデータの種類の配列（`rivals` / `clearRates` / `playCounts` / `downloads`）。INFINITAS の更新で静的ポインタや構造体が動いた可能性。読めれば消える。ライバルはアタッチから2分たつまで出さない（ゲームが受け取り中のことがある） |
 | `serverTime` | 応答した時刻（UTC） |
 
 ### `GET /api/songs` / `charts` / `scores`
 
-`songs` / `charts` / `scores` / `clearrates` / `rivals` / `rivals/scores` は配列のまま返し、ヘッダーに `X-Read-At`（コアがそのデータをゲームから読んで内容が変わった時刻、UTC の ISO 8601）と `X-Game-Version`（そのときのゲームのバージョン）を付ける。まだ読んでいなければ付かない。songs と charts は同じ時刻
+`songs` / `charts` / `scores` / `clearrates` / `rivals` / `rivals/scores` / `downloads` は配列のまま返し、ヘッダーに `X-Read-At`（コアがそのデータをゲームから読んで内容が変わった時刻、UTC の ISO 8601）と `X-Game-Version`（そのときのゲームのバージョン）を付ける。まだ読んでいなければ付かない。songs と charts は同じ時刻
 
 - songs: `{id, title, title2, artist, genre, folder, unlockType, label, packItemId, titleReading, artistReading, listed}`。`titleReading` / `artistReading` は曲名・アーティストの読み（カタカナ。ゲームの並び替え用の表 `Api/SongReadings.cs`。選曲画面のフォルダの中はこの順。表に無い4曲と、読めなかったときは null。読めなかったときは選曲画面に戻るたびに数回読み直し、`status.dataWarnings` に `readings` が出る）。`packItemId` は楽曲パックの商品ID（解禁データの +0xC、`I1800001`〜。パックで売っている曲＝解禁種別 Sub だけ、ほかは null）。`label` は本家の `customtypes.txt` のラベル（2026-03 以降のパックは無い）。`listed` が false の曲はゲームの解禁データに無く、選曲画面に表示されない（BIT 等で解禁できる「未解禁」とは別。2026101400 では IIDX RED Ending (Ryu☆Remix)・Seven Times Four の2曲。クライアントでは NOT DISPLAYED）。`id` は5桁ゼロ埋め、`folder` はバージョンフォルダ番号（0 = 1st style、1 = substream、80 = INFINITAS）
 - charts: `{songId, difficulty, level, notes, bpm}`。`difficulty` は `SPB` `SPN` `SPH` `SPA` `SPL` `DPB` `DPN` `DPH` `DPA` `DPL`
@@ -86,6 +87,12 @@
 
 - `[{songId, difficulty, rate}]`。`rate` は全プレイヤーのクリアレート（%、小数第2位まで。ゲーム画面は小数第1位に四捨五入して表示）。値の無い譜面は含まない
 - サーバーの集計値をゲームが持っているもの（`layout.json` の `clearRate`）。コアは ready になったときと、選曲画面に戻るたびに読み直す
+
+### `GET /api/downloads`
+
+- `[{songId, sound, movie, graphic, downloadedAt}]`。ゲームがダウンロード済みの曲だけ（曲ID順）。`sound` / `movie` / `graphic` はバイト数（`movie`・`graphic` は無い曲が多く、無ければ null）。`downloadedAt` は音のファイルの更新日時（UTC）で、ダウンロードした日（＝その曲を初めてプレーした日）
+- ゲームは曲を初めてプレーするときにデータをダウンロードし、`<INFINITAS のフォルダ>\Resource\dlcache\` の `sound\<曲ID>.ifs`（音・譜面。どの曲にもある）・`movie\<曲ID>.bin`（背景動画）・`graphic\<曲ID>.ifs`（一部の曲の画像）に残す（2026111100 で確認。ファイルは先頭から暗号化されている）。`sound` があればダウンロード済みとする（実機ではプレー回数が 1 以上の曲と完全に一致した）。`movie` には曲ID以外の名前のファイル（イベントの動画など）もあるが返さない
+- INFINITAS のフォルダは bm2dx.exe の場所（`<フォルダ>\gameppm2dx.exe`）から決める。コアは選曲画面に戻るたびにフォルダの一覧（名前・サイズ・日時だけ。ファイルは開かない、約3000件）を読み直す。見つからなければ `status.dataWarnings` に `downloads`
 
 ### `GET /api/plays`
 
