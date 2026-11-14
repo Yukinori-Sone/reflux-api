@@ -94,6 +94,8 @@ namespace Reflux.Api
         static List<SongDto> songList = new List<SongDto>();
         static List<ChartDto> chartList = new List<ChartDto>();
         static List<ClearRateDto> clearRateList = new List<ClearRateDto>();
+        static DateTime songsAt, clearRatesAt, scoresAt, rivalsAt;
+        static string songsGameVersion, clearRatesGameVersion, scoresGameVersion, rivalsGameVersion;
         static string clearRatesKey = "";
         static CachedJson rivals = new CachedJson(new RivalDto[0]);
         static CachedJson rivalScores = new CachedJson(new RivalScoreDto[0]);
@@ -190,10 +192,33 @@ namespace Reflux.Api
             lock (sync) { status.ProcessId = pid; }
         }
         public static string GameVersion { get { lock (sync) { return status.GameVersion; } } }
-        /// <summary>Songs, charts and clear rates as published (for MasterTables, don't modify)</summary>
-        public static (List<SongDto> songs, List<ChartDto> charts, List<ClearRateDto> rates) MasterSource()
+        /// <summary>
+        /// Response headers for a data endpoint: X-Read-At (UTC, when the core last read that data from the game and it changed) and
+        /// X-Game-Version (the game version then). Nothing before the data was read. The JSON stays a plain array for the clients
+        /// </summary>
+        public static Dictionary<string, string> DataHeaders(string kind)
         {
-            lock (sync) { return (songList, chartList, clearRateList); }
+            DateTime at; string version;
+            lock (sync)
+            {
+                (at, version) = kind switch
+                {
+                    "songs" => (songsAt, songsGameVersion),
+                    "clearRates" => (clearRatesAt, clearRatesGameVersion),
+                    "scores" => (scoresAt, scoresGameVersion),
+                    "rivals" => (rivalsAt, rivalsGameVersion),
+                    _ => (default(DateTime), null),
+                };
+            }
+            var h = new Dictionary<string, string>();
+            if (at != default) { h["X-Read-At"] = at.ToString("yyyy-MM-dd'T'HH:mm:ss.fff'Z'"); }
+            if (version != null) { h["X-Game-Version"] = version; }
+            return h;
+        }
+        /// <summary>Songs, charts and clear rates as published (for MasterTables, don't modify)</summary>
+        public static (List<SongDto> songs, List<ChartDto> charts, List<ClearRateDto> rates, DateTime songsAt, DateTime ratesAt, string gameVersion) MasterSource()
+        {
+            lock (sync) { return (songList, chartList, clearRateList, songsAt, clearRatesAt, songsGameVersion); }
         }
         public static void SetVersions(string gameVersion, string offsetsVersion)
         {
@@ -301,6 +326,8 @@ namespace Reflux.Api
                 rivalsKey = key;
                 rivals = new CachedJson(list);
                 rivalScores = new CachedJson(scores);
+                rivalsAt = DateTime.UtcNow;
+                rivalsGameVersion = status.GameVersion;
                 status.RivalsRevision++;
             }
         }
@@ -314,6 +341,8 @@ namespace Reflux.Api
                 clearRatesKey = key;
                 clearRates = new CachedJson(rates);
                 clearRateList = rates;
+                clearRatesAt = DateTime.UtcNow;
+                clearRatesGameVersion = status.GameVersion;
                 status.ClearRatesRevision++;
             }
         }
@@ -329,6 +358,8 @@ namespace Reflux.Api
                     charts = new CachedJson(c);
                     songList = s;
                     chartList = c;
+                    songsAt = DateTime.UtcNow;
+                    songsGameVersion = status.GameVersion;
                     status.SongsRevision++;
                 }
             }
@@ -346,6 +377,8 @@ namespace Reflux.Api
                 lock (sync)
                 {
                     scores = new CachedJson(s);
+                    scoresAt = DateTime.UtcNow;
+                    scoresGameVersion = status.GameVersion;
                     status.ScoresRevision++;
                 }
             }

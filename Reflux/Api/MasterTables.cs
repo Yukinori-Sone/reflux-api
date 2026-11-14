@@ -50,16 +50,34 @@ namespace Reflux.Api
         static object builtFrom;
         static Dictionary<string, string> built = new Dictionary<string, string>();
 
-        /// <summary>JSON of each table (Masters.Master), rebuilt when the songs or clear rates changed</summary>
+        /// <summary>
+        /// JSON of each table (Masters.Master), rebuilt when the songs or clear rates changed. Before Reflux has read the song list
+        /// (INFINITAS not started since Reflux started), the last tables read (masters-cache.json, cached = true)
+        /// </summary>
         public static Dictionary<string, string> Json()
         {
-            var (songs, charts, rates) = ApiState.MasterSource();
+            var (songs, charts, rates, songsAt, ratesAt, version) = ApiState.MasterSource();
+            if (songs.Count == 0)
+            {
+                var cached = Keys.Select(k => (k, json: MasterCache.GetJson(k))).Where(c => c.json != null).ToDictionary(c => c.k, c => c.json);
+                if (cached.Count == Keys.Length) { return cached; }
+            }
             var key = Tuple.Create<object, object, object>(songs, charts, rates);
             lock (sync)
             {
                 if (!Equals(key, builtFrom))
                 {
-                    built = Build(songs, charts, rates).ToDictionary(m => m.Key, m => JsonConvert.SerializeObject(m, ApiState.JsonSettings));
+                    var tables = Build(songs, charts, rates);
+                    if (songs.Count > 0)
+                    {
+                        foreach (var m in tables)
+                        {
+                            m.ReadAt = m.Key == "chart" && ratesAt > songsAt ? ratesAt : songsAt; /* The chart table has the clear rates too */
+                            m.GameVersion = version;
+                        }
+                        MasterCache.Save(tables);
+                    }
+                    built = tables.ToDictionary(m => m.Key, m => JsonConvert.SerializeObject(m, ApiState.JsonSettings));
                     builtFrom = key;
                 }
                 return built;

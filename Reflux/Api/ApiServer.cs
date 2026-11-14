@@ -103,14 +103,14 @@ namespace Reflux.Api
                     case "/api/screenshot": Screenshots.Get(ctx); return;
                     case "/api/layout/preview": Layout.Preview(ctx, null); return;
                     case "/api/status": Write(ctx, 200, ApiState.StatusJson()); return;
-                    case "/api/songs": Write(ctx, 200, ApiState.SongsJson()); return;
-                    case "/api/charts": Write(ctx, 200, ApiState.ChartsJson()); return;
-                    case "/api/scores": Write(ctx, 200, ApiState.ScoresJson()); return;
+                    case "/api/songs": Write(ctx, 200, ApiState.SongsJson(), ApiState.DataHeaders("songs")); return;
+                    case "/api/charts": Write(ctx, 200, ApiState.ChartsJson(), ApiState.DataHeaders("songs")); return;
+                    case "/api/scores": Write(ctx, 200, ApiState.ScoresJson(), ApiState.DataHeaders("scores")); return;
                     case "/api/latest": Write(ctx, 200, ApiState.LatestJson()); return;
                     case "/api/session": Write(ctx, 200, ApiState.SessionJson()); return;
-                    case "/api/clearrates": Write(ctx, 200, ApiState.ClearRatesJson()); return;
-                    case "/api/rivals": Write(ctx, 200, ApiState.RivalsJson()); return;
-                    case "/api/rivals/scores": Write(ctx, 200, ApiState.RivalScoresJson()); return;
+                    case "/api/clearrates": Write(ctx, 200, ApiState.ClearRatesJson(), ApiState.DataHeaders("clearRates")); return;
+                    case "/api/rivals": Write(ctx, 200, ApiState.RivalsJson(), ApiState.DataHeaders("rivals")); return;
+                    case "/api/rivals/scores": Write(ctx, 200, ApiState.RivalScoresJson(), ApiState.DataHeaders("rivals")); return;
                     case "/api/offsets": Write(ctx, 200, DebugApi.GetOffsetsJson()); return;
                     case "/api/memory/info":
                         {
@@ -190,9 +190,9 @@ namespace Reflux.Api
             return Newtonsoft.Json.JsonConvert.SerializeObject(new { error = code, message }, ApiState.JsonSettings);
         }
 
-        public static void Write(HttpListenerContext ctx, int statusCode, string json)
+        public static void Write(HttpListenerContext ctx, int statusCode, string json, Dictionary<string, string> headers = null)
         {
-            WriteBytes(ctx, statusCode, "application/json; charset=utf-8", Encoding.UTF8.GetBytes(json), null);
+            WriteBytes(ctx, statusCode, "application/json; charset=utf-8", Encoding.UTF8.GetBytes(json), headers);
         }
 
         public static void WriteBytes(HttpListenerContext ctx, int statusCode, string contentType, byte[] bytes, Dictionary<string, string> headers)

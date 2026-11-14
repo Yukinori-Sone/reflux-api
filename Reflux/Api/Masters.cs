@@ -67,6 +67,12 @@ namespace Reflux.Api
             public string Note { get; set; }
             /// <summary>Set when the table couldn't be read or has image names the built-in map doesn't know</summary>
             public string Warning { get; set; }
+            /// <summary>When the content was read from the game (null for Reflux's own definitions)</summary>
+            public DateTime? ReadAt { get; set; }
+            /// <summary>Game version the content was read from</summary>
+            public string GameVersion { get; set; }
+            /// <summary>True when INFINITAS isn't available and this is the last table read (masters-cache.json)</summary>
+            public bool Cached { get; set; }
             public List<Column> Columns { get; set; } = new List<Column>();
             public List<Dictionary<string, object>> Rows { get; set; } = new List<Dictionary<string, object>>();
         }
@@ -167,8 +173,19 @@ namespace Reflux.Api
             var parts = new List<(string key, string json)>();
             if (want.Overlaps(ExeKeys))
             {
-                using var reader = DebugApi.OpenReader(out _, out _, out var openError);
-                parts.AddRange(ReadExe(reader, Layout.Current.Masters, openError).Select(m => (m.Key, JsonConvert.SerializeObject(m, ApiState.JsonSettings))));
+                List<Master> exe;
+                string openError;
+                using (var reader = DebugApi.OpenReader(out _, out _, out openError)) { exe = ReadExe(reader, Layout.Current.Masters, openError); }
+                var now = DateTime.UtcNow;
+                var version = ApiState.GameVersion;
+                foreach (var m in exe.Where(m => openError == null && m.Rows.Count > 0)) { m.ReadAt = now; m.GameVersion = version; }
+                MasterCache.Save(exe);
+                foreach (var m in exe)
+                {
+                    /* Not attached (or nothing read): the last table read, when there is one */
+                    var cached = openError != null || m.Rows.Count == 0 ? MasterCache.GetJson(m.Key) : null;
+                    parts.Add((m.Key, cached ?? JsonConvert.SerializeObject(m, ApiState.JsonSettings)));
+                }
             }
             parts.AddRange(BuiltIn().Select(m => (m.Key, JsonConvert.SerializeObject(m, ApiState.JsonSettings))));
             if (want.Overlaps(MasterTables.Keys))
@@ -176,7 +193,7 @@ namespace Reflux.Api
                 parts.AddRange(MasterTables.Json().Select(kv => (kv.Key, kv.Value))); /* Cached JSON: the song table alone is about 1 MB */
             }
             var list = parts.Where(p => want.Contains(p.key)).OrderBy(p => Array.IndexOf(Order, p.key) is var i && i >= 0 ? i : 99).Select(p => p.json);
-            var head = JsonConvert.SerializeObject(new { gameVersion = ApiState.GameVersion, readAt = DateTime.UtcNow }, ApiState.JsonSettings);
+            var head = JsonConvert.SerializeObject(new { gameVersion = ApiState.GameVersion, readAt = DateTime.UtcNow }, ApiState.JsonSettings); /* Now; each table has its own readAt / gameVersion */
             return (200, head.Substring(0, head.Length - 1) + ",\"masters\":[" + string.Join(",", list) + "]}");
         }
 

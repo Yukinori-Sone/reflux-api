@@ -75,6 +75,8 @@
 
 ### `GET /api/songs` / `charts` / `scores`
 
+`songs` / `charts` / `scores` / `clearrates` / `rivals` / `rivals/scores` は配列のまま返し、ヘッダーに `X-Read-At`（コアがそのデータをゲームから読んで内容が変わった時刻、UTC の ISO 8601）と `X-Game-Version`（そのときのゲームのバージョン）を付ける。まだ読んでいなければ付かない。songs と charts は同じ時刻
+
 - songs: `{id, title, title2, artist, genre, folder, unlockType, label, packItemId, titleReading, artistReading, listed}`。`titleReading` / `artistReading` は曲名・アーティストの読み（カタカナ。ゲームの並び替え用の表 `Api/SongReadings.cs`。選曲画面のフォルダの中はこの順。表に無い4曲と、読めなかったときは null。読めなかったときは選曲画面に戻るたびに数回読み直し、`status.dataWarnings` に `readings` が出る）。`packItemId` は楽曲パックの商品ID（解禁データの +0xC、`I1800001`〜。パックで売っている曲＝解禁種別 Sub だけ、ほかは null）。`label` は本家の `customtypes.txt` のラベル（2026-03 以降のパックは無い）。`listed` が false の曲はゲームの解禁データに無く、選曲画面に表示されない（BIT 等で解禁できる「未解禁」とは別。2026101400 では IIDX RED Ending (Ryu☆Remix)・Seven Times Four の2曲。クライアントでは NOT DISPLAYED）。`id` は5桁ゼロ埋め、`folder` はバージョンフォルダ番号（0 = 1st style、1 = substream、80 = INFINITAS）
 - charts: `{songId, difficulty, level, notes, bpm}`。`difficulty` は `SPB` `SPN` `SPH` `SPA` `SPL` `DPB` `DPN` `DPH` `DPA` `DPL`
 - scores: `{songId, difficulty, unlocked, lamp, grade, exScore, missCount, pGreat, great, bad, poor, clearCount, playCount}`。`clearCount` / `playCount` はゲームが持っているクリア回数・プレー回数（自己ベストのハッシュマップの +0x28 / +0x2C。選曲画面に戻るたびに読み直し、変わっていれば `scoresRevision` が増える）。
@@ -135,7 +137,10 @@ curl -X PUT "$A/settings" -d '{"unlockCheckSeconds":-1,"trackerTsv":"onChange","
 - クエリ `tables`: 返す表の key をカンマ区切りで（例 `?tables=song,chart`）。`all` で全部。省略すると下表の定数の表だけ（曲・譜面・シリーズ・楽曲パックは含めない。クライアントの「マスター」タブはこれを使い、曲などは手元の DB から出す）。知らない key は `400`（`unknown_table`）
 - ゲームの exe を読むのは、`source` が `exe` の表を1つでも頼んだときだけ。`?tables=song,chart,series,pack` ならメモリは読まない
 
-- `{gameVersion, readAt, masters: [{key, name, source, address, note, warning, columns: [{key, header, numeric}], rows: [{<列のkey>: 値}]}]}`
+- `{gameVersion, readAt, masters: [{key, name, source, address, note, warning, readAt, gameVersion, cached, columns: [{key, header, numeric}], rows: [{<列のkey>: 値}]}]}`
+- 一番外の `gameVersion` / `readAt` は、今つながっているゲームのバージョン（未接続なら null）とレスポンスを作った時刻。表ごとの `readAt` / `gameVersion` は、その表の中身をゲームから読んだ時刻（UTC）とそのときのゲームのバージョン（Reflux 側の定義の表は null）
+- `cached`: `true` なら INFINITAS が起動していない（または Reflux の起動後まだ曲リストを読んでいない）ので、最後に読めた表（実行フォルダの `masters-cache.json`）を返している。`readAt` / `gameVersion` はそのときのもの。一度も読めていなければ `cached` は `false` で、行が空で `warning` が付く
+- `masters-cache.json` には、ゲームから警告なしに読めた表（exe の表と、曲・譜面・シリーズ・楽曲パック）を、中身が変わったときだけ書く（毎回は書かない）。ほとんどは INFINITAS の更新でしか変わらない。譜面の表は全国クリアレートを含むので、クリアレートが変わると書き直す（2MB 前後）。消しても次に読めたときに作り直す
 - `source`: `exe`（ゲームの exe の中の表から今読んだもの）／`reflux`（Reflux 側の定義。ゲームに表が無いか、まだ見つけていないもの）
 - `warning`: ゲームに未接続で読めないとき、または知らない画像名があるとき（表の位置や並びが変わった可能性）
 - 表示名を文字で持っているのは都道府県だけで、ほかは画像名しか無い。名前は画像名から Reflux が付けている（`Api/Masters.cs`）
