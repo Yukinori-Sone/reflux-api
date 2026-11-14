@@ -55,15 +55,26 @@ namespace Reflux.Api
                 {
                     break;
                 }
-                try
-                {
-                    Handle(ctx);
-                }
-                catch (Exception e)
-                {
-                    Utils.Except(e, "ApiRequest");
-                    try { Write(ctx, 500, Error("internal_error", e.Message)); } catch { }
-                }
+                /* Each request on the thread pool: one client that reads a large response slowly (the masters are about 2.5 MB)
+                   must not hold up the others, e.g. the monitor's status polling */
+                ThreadPool.QueueUserWorkItem(_ => Run(ctx));
+            }
+        }
+
+        /// <summary>Requests that change something (PUT / POST: offsets, layout, settings, re-attach) still run one at a time</summary>
+        static readonly object changeSync = new object();
+
+        static void Run(HttpListenerContext ctx)
+        {
+            try
+            {
+                if (ctx.Request.HttpMethod == "GET" || ctx.Request.HttpMethod == "HEAD") { Handle(ctx); }
+                else { lock (changeSync) { Handle(ctx); } }
+            }
+            catch (Exception e)
+            {
+                Utils.Except(e, "ApiRequest");
+                try { Write(ctx, 500, Error("internal_error", e.Message)); } catch { }
             }
         }
 

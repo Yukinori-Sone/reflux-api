@@ -122,7 +122,7 @@ namespace Reflux.Api
                 Columns = new[] { C("id", "ID", true), C("title", "曲名"), C("titleReading", "曲名の読み"), C("title2", "曲名（英字）"), C("artist", "アーティスト"),
                     C("artistReading", "アーティストの読み"), C("genre", "ジャンル"), C("seriesNo", "シリーズ番号", true), C("series", "登場作品"),
                     C("unlock", "解禁種別"), C("label", "ラベル"), C("pack", "楽曲パック"), C("packName", "楽曲パックの名前"), C("listed", "表示") }
-                    .Concat(Diffs.Select(d => C(d, d, true))).ToList(),
+                    .Concat(Diffs.Select(d => C(d.ToLowerInvariant(), d, true))).ToList(), /* Row keys are camel cased by the JSON settings: spb .. dpl */
             };
             var packNames = Packs.ToDictionary(p => p.itemId, p => p.name);
             foreach (var s in songs.OrderBy(s => s.Id))
@@ -136,7 +136,7 @@ namespace Reflux.Api
                     ["listed"] = s.Listed,
                 };
                 bySong.TryGetValue(s.Id, out var levels);
-                foreach (var d in Diffs) { row[d] = levels != null && levels.TryGetValue(d, out var lv) ? (object)lv : null; }
+                foreach (var d in Diffs) { row[d.ToLowerInvariant()] = levels != null && levels.TryGetValue(d, out var lv) ? (object)lv : null; }
                 song.Rows.Add(row);
             }
 
