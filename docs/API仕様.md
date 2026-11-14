@@ -139,7 +139,7 @@ curl -X PUT "$A/settings" -d '{"unlockCheckSeconds":-1,"trackerTsv":"onChange","
 
 - `{gameVersion, readAt, masters: [{key, name, source, address, note, warning, readAt, gameVersion, cached, columns: [{key, header, numeric}], rows: [{<列のkey>: 値}]}]}`
 - 一番外の `gameVersion` / `readAt` は、今つながっているゲームのバージョン（未接続なら null）とレスポンスを作った時刻。表ごとの `readAt` / `gameVersion` は、その表の中身をゲームから読んだ時刻（UTC）とそのときのゲームのバージョン（Reflux 側の定義の表は null）
-- `cached`: `true` なら INFINITAS が起動していない（または Reflux の起動後まだ曲リストを読んでいない）ので、最後に読めた表（実行フォルダの `masters-cache.json`）を返している。`readAt` / `gameVersion` はそのときのもの。一度も読めていなければ `cached` は `false` で、行が空で `warning` が付く
+- `cached`: `true` なら今のゲームから読んだものではなく、最後に読めた表（実行フォルダの `masters-cache.json`）を返している。コアが `ready` でないとき（INFINITAS を閉じた後・起動前・更新でずれているとき）はいつもこれ。キャッシュの `readAt` は、その中身を最初に読んだ時刻（中身が変わらない間は書き直さないので、最後に確かめた時刻ではない）。キャッシュが無ければ `cached` は `false` で、その時点で読めた内容（行が空なら `warning` 付き）
 - `masters-cache.json` には、ゲームから警告なしに読めた表（exe の表と、曲・譜面・シリーズ・楽曲パック）を、中身が変わったときだけ書く（毎回は書かない）。ほとんどは INFINITAS の更新でしか変わらない。譜面の表は全国クリアレートを含むので、クリアレートが変わると書き直す（2MB 前後）
 - 消された・外から書き換えられた（壊れた）ときは、INFINITAS が起動していれば次の `/api/masters` で作り直す（ファイルの大きさと更新時刻で気づく。読めない表は読み込み時に捨てる）
 - 前回の正常なキャッシュを壊さないよう、次のときは書かない（表はそのとき読めた内容で返し、キャッシュは前のまま）
@@ -175,7 +175,7 @@ curl -X PUT "$A/settings" -d '{"unlockCheckSeconds":-1,"trackerTsv":"onChange","
 | `pack` | 楽曲パック | No（選曲画面の並び）・商品ID・名前・フォルダの画像名・曲数・ラベル。名前の無い商品ID は Reflux がまだ知らない新しいパック |
 
 - クライアントのマスタータブの同名の表と同じ内容（クライアントは DB の JOIN で作っている）。違いは、シリーズ名がクライアントでは DB で変えられること、クライアントの曲の表には楽曲パックの名前の列が無いこと
-- 曲データはコアが INFINITAS にアタッチして曲リストを読むまで空（`warning` が付く）。INFINITAS を閉じても、Reflux を再起動するまでは最後に読んだ内容を返す
+- コアが `ready` のときだけ今の内容を組み立てて返す。それ以外はキャッシュ（`cached: true`）。キャッシュも無く曲データも無ければ行が空で `warning` が付く
 - 負荷: ゲームのメモリは読まない。曲・クリアレートが変わったとき（`songsRevision` / `clearRatesRevision`）の最初のリクエストで表を組み立てて JSON にし、以降はそれを返すだけ。大きさは 2026111100（1899 曲・11719 譜面）で曲 約 0.9MB・譜面 約 1.8MB・シリーズと楽曲パック 10KB、`all` で約 2.4MB。ゲームPCで最初の1回が約 0.5 秒、以降は 0.1〜0.3 秒（ほとんど LAN の転送）。プレー中・リザルト画面を避けたいなら、`/api/status` の `gameState` が `songSelect` のときに呼び、`songsRevision` / `clearRatesRevision` が変わったときだけ取り直す
 
 ## ゲーム更新対応用のエンドポイント（リクエストのたびにメモリを読む／ファイルを書く）

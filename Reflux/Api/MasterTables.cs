@@ -53,12 +53,13 @@ namespace Reflux.Api
 
         /// <summary>
         /// JSON of each table (Masters.Master), rebuilt when the songs or clear rates changed. Before Reflux has read the song list
-        /// (INFINITAS not started since Reflux started), the last tables read (masters-cache.json, cached = true)
+        /// (INFINITAS not started since Reflux started) and whenever Reflux isn't ready (INFINITAS closed, or not matching after an
+        /// update), the last tables read (masters-cache.json, cached = true) when there are all four
         /// </summary>
         public static Dictionary<string, string> Json()
         {
             var (songs, charts, rates, songsAt, ratesAt, version) = ApiState.MasterSource();
-            if (songs.Count == 0)
+            if (songs.Count == 0 || !ApiState.IsReady) /* Also after INFINITAS closed: the snapshot in memory is no longer the live game */
             {
                 var cached = Keys.Select(k => (k, json: MasterCache.GetJson(k))).Where(c => c.json != null).ToDictionary(c => c.k, c => c.json);
                 if (cached.Count == Keys.Length) { return cached; }
