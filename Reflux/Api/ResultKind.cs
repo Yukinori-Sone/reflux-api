@@ -8,18 +8,25 @@ namespace Reflux.Api
     ///    A higher DJ LEVEL always comes with a higher EX score. A DAN gauge play to the end (lamp NO PLAY, with a miss count)
     ///    counts as cleared, only its EX score and miss count are compared. PERFECT counts as FULL COMBO (the game keeps no PERFECT)
     ///  - failed: played to the end, FAILED
-    ///  - dead: ended before the end with HARD / EX HARD / DAN gauge (the gauge ran out)
-    ///  - quit: ended before the end with another gauge (the player closed it)
-    /// TODO: a play closed by the player on HARD / EX HARD / DAN gauge is "dead" for now; nothing found yet tells them apart
-    /// (the gauge reads 0 in both). DOUBLE BATTLE / H-RANDOM plays (not kept by the game) and plays whose previous best is
-    /// unknown count as pb when cleared.
+    ///  - dead: ended before the end because the gauge ran out (HARD / EX HARD / DAN)
+    ///  - quit: ended before the end, closed by the player
+    /// dead and quit come from the end state of each side in the judge data (JudgeLayout.P1EndState: 2 gauge ran out, 5 closed);
+    /// when neither is there (layout moved), by the gauge: HARD / EX HARD / DAN = dead, others = quit.
+    /// DOUBLE BATTLE / H-RANDOM plays (not kept by the game) and plays whose previous best is unknown count as pb when cleared.
     /// </summary>
     static class ResultKind
     {
+        const int EndGaugeOut = 2, EndClosed = 5;
+
+        /// <summary>Main loop thread, on the result screen (reads the judge data)</summary>
         public static string Of(PlayData play, (Lamp lamp, int exScore, int? missCount)? prev, int? missCount)
         {
             if (play.PrematureEnd)
             {
+                var l = Layout.Judge;
+                int p1 = Utils.ReadInt32(Offsets.JudgeData, l.P1EndState), p2 = Utils.ReadInt32(Offsets.JudgeData, l.P2EndState);
+                if (p1 == EndClosed || p2 == EndClosed) { return "quit"; }
+                if (p1 == EndGaugeOut || p2 == EndGaugeOut) { return "dead"; }
                 var g = play.Gauge;
                 return g == "OFF" || g == "ASSIST EASY" || g == "EASY" ? "quit" : "dead";
             }

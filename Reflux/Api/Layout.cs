@@ -127,6 +127,12 @@ namespace Reflux.Api
         /// <summary>Non zero when the play ended early</summary>
         public int P1MeasureEnd = 0x40;
         public int P2MeasureEnd = 0x44;
+        /// <summary>
+        /// How the play ended on each side, read on the result screen (2026111100, AA SPA P1): 0 played to the end, 1 side not
+        /// played, 2 the gauge ran out (HARD / EX HARD), 5 closed by the player (both sides). Used by ResultKind only
+        /// </summary>
+        public int P1EndState = 0x48;
+        public int P2EndState = 0x4C;
         /// <summary>Gauge percent</summary>
         public int P1Gauge = 0x134;
         public int P2Gauge = 0x138;

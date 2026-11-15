@@ -113,7 +113,7 @@ namespace Reflux.ServerMonitor
                 Row(g, "保存するリザルト", kinds);
                 var kindNote = new Label { AutoSize = true, ForeColor = SystemColors.GrayText, MaximumSize = new Size(520, 0),
                     Text = "自己ベスト更新は、クリアランプ・EXスコア・ミスカウントのどれかがプレー前のゲームの自己ベストより良くなったもの（DJ LEVEL は EX スコアに含まれる）。" +
-                           "段位ゲージの完走はクリアに入れ、EXスコアとミスカウントで比べます。HARD・EX HARD・段位ゲージで自分で閉じたプレーは、今は「途中落ち」になります。" };
+                           "段位ゲージの完走はクリアに入れ、EXスコアとミスカウントで比べます。" };
                 g.Controls.Add(kindNote); g.SetColumnSpan(kindNote, 2);
                 var shotNote = new Label { AutoSize = true, ForeColor = SystemColors.GrayText, MaximumSize = new Size(520, 0),
                     Text = "リザルト画面が出たら撮り続け、左の成績パネルの演出が止まった1枚を残します（止まらないまま画面を抜けたときは、抜ける直前の1枚）。" +
