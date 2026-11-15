@@ -40,6 +40,30 @@ namespace Reflux.ServerMonitor
         public static int JpegQuality { get => Math.Max(50, Math.Min(100, (int)Get("ScreenshotJpegQuality", 92))); set => Set("ScreenshotJpegQuality", value); }
         /// <summary>Tuning aid (registry only): keep every frame of the burst in screenshots\burst\ with the differences in capture.log</summary>
         public static bool KeepBurst => (int)Get("ScreenshotKeepBurst", 0) != 0;
+
+        /// <summary>
+        /// Kinds of result (the core's resultKind, plus "unrecorded" when no play record came) with their label and whether the
+        /// screenshot is kept by default (user's choice)
+        /// </summary>
+        public static readonly (string kind, string label, bool keep)[] Kinds =
+        {
+            ("first", "完走・クリア（初回）", true),
+            ("pb", "完走・クリア（自己ベスト更新あり）", true),
+            ("nopb", "完走・クリア（自己ベスト更新なし）", false),
+            ("failed", "完走・FAILED", true),
+            ("dead", "途中落ち（HARD / EX HARD / 段位）", true),
+            ("quit", "自分で閉じた", false),
+            ("unrecorded", "プレーの記録が取れなかったもの", false),
+        };
+
+        /// <summary>Keep the screenshot of this kind of result. Unknown kinds (a core newer than this monitor) are kept</summary>
+        public static bool Keep(string kind)
+        {
+            var k = Kinds.FirstOrDefault(x => x.kind == kind);
+            return k.kind == null || (int)Get("ScreenshotKeep_" + kind, k.keep ? 1 : 0) != 0;
+        }
+
+        public static void SetKeep(string kind, bool keep) => Set("ScreenshotKeep_" + kind, keep ? 1 : 0);
     }
 
     /// <summary>
@@ -118,7 +142,7 @@ namespace Reflux.ServerMonitor
             Log($"picked {bmp.Width}x{bmp.Height}: {how}, waiting for the play record");
 
             /* Reflux records the play a moment after the result screen appears: wait for it (up to 15 seconds) */
-            string key = null;
+            string key = null, kind = null;
             using (var api = new CoreApi(config))
             {
                 for (int i = 0; i < 15 && key == null; i++)
@@ -130,6 +154,7 @@ namespace Reflux.ServerMonitor
                             DateTime.TryParse(ts, CultureInfo.InvariantCulture, DateTimeStyles.AdjustToUniversal | DateTimeStyles.AssumeUniversal, out var t) && t >= since)
                         {
                             key = KeyOf(latest);
+                            latest.TryGetValue("resultKind", out kind); /* Missing from older cores: kept */
                             lastPlayTimestamp = ts;
                             break;
                         }
@@ -138,7 +163,16 @@ namespace Reflux.ServerMonitor
                     await Task.Delay(1000).ConfigureAwait(false);
                 }
             }
-            key ??= $"{DateTime.UtcNow:yyyyMMdd'T'HHmmss'Z'}_unrecorded"; /* Quick retry, or a play Reflux couldn't read */
+            if (key == null)
+            {
+                key = $"{DateTime.UtcNow:yyyyMMdd'T'HHmmss'Z'}_unrecorded"; /* Quick retry, or a play Reflux couldn't read */
+                kind = "unrecorded";
+            }
+            if (kind != null && !ScreenshotSettings.Keep(kind))
+            {
+                Log($"{key}: not saved ({kind}, off in the settings)");
+                return;
+            }
 
             Directory.CreateDirectory(Folder);
             var jpeg = ScreenshotSettings.Jpeg;

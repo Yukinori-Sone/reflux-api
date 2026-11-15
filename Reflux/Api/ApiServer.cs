@@ -96,7 +96,7 @@ namespace Reflux.Api
                 {
                     case "":
                     case "/api":
-                        Write(ctx, 200, "{\"endpoints\":[\"GET /api/status\",\"GET /api/songs\",\"GET /api/charts\",\"GET /api/scores\",\"GET /api/latest\",\"GET /api/session\",\"GET /api/clearrates\",\"GET /api/rivals\",\"GET /api/rivals/scores\",\"GET /api/downloads\",\"GET /api/plays?since=&limit=&infinitasId=\",\"GET /api/masters?tables=\",\"GET /api/screenshots\",\"GET /api/screenshot?key=\",\"POST /api/attach/retry\"," +
+                        Write(ctx, 200, "{\"endpoints\":[\"GET /api/status\",\"GET /api/songs\",\"GET /api/charts\",\"GET /api/scores\",\"GET /api/latest\",\"GET /api/session\",\"GET /api/clearrates\",\"GET /api/rivals\",\"GET /api/rivals/scores\",\"GET /api/downloads\",\"GET /api/plays?since=&limit=&infinitasId=\",\"GET /api/masters?tables=\",\"GET /api/screenshots\",\"GET /api/screenshot?key=\",\"DELETE /api/screenshot?key=\",\"POST /api/attach/retry\"," +
                             "\"GET /api/offsets\",\"PUT /api/offsets\",\"GET /api/memory/info\",\"GET /api/memory?address=&length=&format=hex|bin&encoding=sjis\"," +
                             "\"GET /api/memory/search?start=&length=&hex=|text=&encoding=|int32=|int64=&max=\"," +
                             "\"GET /api/settings\",\"PUT /api/settings\",\"GET /api/layout\",\"PUT /api/layout\",\"GET|POST /api/layout/preview?start=&count=\"]}");
@@ -169,6 +169,11 @@ namespace Reflux.Api
                         Write(ctx, 202, "{\"accepted\":true}");
                         return;
                 }
+            }
+            else if (method == "DELETE" && path == "/api/screenshot")
+            {
+                Screenshots.Delete(ctx);
+                return;
             }
             Write(ctx, 404, Error("not_found", $"{method} {path}"));
         }

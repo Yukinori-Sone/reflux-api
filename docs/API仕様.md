@@ -41,6 +41,7 @@
 | `GET /api/plays` | これまでの全プレー記録（`plays.jsonl`）。下記 |
 | `GET /api/screenshots` | リザルト画面のスクリーンショットの一覧。下記 |
 | `GET /api/screenshot?key=...` | スクリーンショット1枚（`image/png` か `image/jpeg`）。下記 |
+| `DELETE /api/screenshot?key=...` | スクリーンショット1枚を消す。下記 |
 | `GET /api/clearrates` | 全国のクリアレート（譜面ごと）。下記 |
 | `GET /api/rivals` | ゲームに登録したライバル（SP・DP 別に最大5人）。下記 |
 | `GET /api/rivals/scores` | ライバル全員の譜面ごとの EX スコア・ランプ。下記 |
@@ -101,16 +102,19 @@
 - `source`: `reflux`（コアが記録したプレー）／`sessionTsv`（`plays.jsonl` が無かったときに `sessions/Session_*.tsv` から1回だけ取り込んだもの。曲は曲名で ID に対応づけ、`infinitasId` は取り込んだときのプレイヤー、`misscount` が `-` だったものは `null`）
 - `misscount` はミスカウントが有効なプレーだけ（途中終了などは `null`）。曲情報だけで判定の無い記録（プレーデータが読めなかったとき）は入れない
 - `prevLamp` / `prevExScore` / `prevMissCount`: そのプレーの直前の、ゲームが保存していた自己ベスト（ランプは `lamp` と同じ略号、ミスは無ければ `null`）。選曲画面に戻るたびにゲームの自己ベストのハッシュマップ（`PlayCounts`）から読み直した値に、それ以降に記録したプレー（クイックリトライ）を足したもの。`tracker.db` は使わない（ランプがゲームとの最大値で、プレイヤー別でもないため）。ログイン中のプレイヤーの値。ゲームはランプ PERFECT を保存しないので、PFC の後も `FC`。ハッシュマップが読めないときと、この項目を入れる前（2026-10-31 より前）の記録・`sessionTsv` には無い
+- `resultKind`（2026-11-15 から）: リザルトの区分。モニターがリザルト画像を残すかどうかをこれで決める（`Api/ResultKind.cs`）。`/api/latest` にも付く。`first` = 完走・クリアで、その譜面の記録が無かった（直前の自己ベストが NO PLAY・EX 0）、`pb` / `nopb` = 完走・クリアで、直前の自己ベスト（`prevLamp` 等）よりクリアランプ・EX スコア・ミスカウントのどれかが良くなった／ならなかった（DJ LEVEL は EX スコアに含まれる。PERFECT は FC と同じ。段位ゲージの完走＝ランプ NO PLAY で途中終了でないものはクリアに入れ、EX とミスだけ比べる。直前の自己ベストが分からないプレーと DOUBLE BATTLE・H-RANDOM は `pb`）、`failed` = 完走・FAILED、`dead` = 途中終了で HARD・EX HARD・段位ゲージ、`quit` = 途中終了でそれ以外のゲージ（自分で閉じた）。HARD・EX HARD・段位ゲージで自分で閉じたプレーは、見分ける方法が見つかるまで `dead`（どちらもゲージ残量は 0 で記録される）
 - `unsaved` / `battle` / `hran`（2026-11-04 から）: ゲームがプレーデータを書かず自己ベストにも残さないプレー（DOUBLE BATTLE・H-RANDOM）にだけ付く（`unsaved` = `true`、`battle` / `hran` = `true` / `false`）。Reflux が選曲中の譜面・判定・ゲージ・オプションから組み立てたもの（`Api/UnsavedPlay.cs`）: 譜面は選曲中の難易度の段＋左右で判定があれば DP（DOUBLE BATTLE は SP の譜面）、ランプはゲージの種類と残り（ASSIST EASY 60%・EASY/ノーマル 80%・HARD/EX HARD 生存、アシスト付きは ASSIST CLEAR、コンボが切れなければ FC）、`notecount` は DOUBLE BATTLE なら SP の2倍（AUTO SCRATCH でも）、DJ LEVEL はそのノーツ数で計算。`prevLamp` 等は無い。`tracker.db`・`bestdetail.json`・サーバー送信・JSON のセッションには入れない
 - クライアントは `sessionPlays` が変わるたびに、手元の最新の `timestamp` を `since` にして差分を取る
 
-### `GET /api/screenshots` / `GET /api/screenshot?key=...`
+### `GET /api/screenshots` / `GET|DELETE /api/screenshot?key=...`
 
 リザルト画面のスクリーンショット。撮るのはコアではなくタスクトレイのモニター（`RefluxAPIServerMonitor.exe`、ユーザーのセッションで動く。サービスのコアには画面が無い）で、実行フォルダの `screenshots/` に保存する。コアはそのフォルダを返すだけ。
 
 - ファイル名（拡張子を除いた部分が `key`）: `<プレー日時 UTC yyyyMMddTHHmmssZ>_<曲ID 5桁>_<譜面>`（例 `20261015T155011Z_23083_DPA`）。日時・曲・譜面は `/api/plays` の `timestamp`・`songid`・`diff` と同じなので、プレーと1対1で結びつく。プレーが記録されなかったときは `<撮った日時>_unrecorded`
 - `GET /api/screenshots`: `[{key, file, size, savedAt}]`
 - `GET /api/screenshot?key=...`: 画像そのもの。`key` の形が違えば `400`、無ければ `404`
+- `DELETE /api/screenshot?key=...`（2026-11-15 から）: その `key` の画像を拡張子に関係なくすべて消す。`200 {deleted: [ファイル名]}`、`key` の形が違えば `400`、無ければ `404`。クライアントの「リザルト画像を削除」が使う
+- どのリザルトを残すかはモニターの設定（「保存するリザルト」、`resultKind` ごと＋記録が取れなかったもの。HKCU の `ScreenshotKeep_<区分>`）。初期値は first・pb・failed・dead がオン、nopb・quit・unrecorded がオフ（ユーザー指定）。オフの区分は撮ったあと記録を見て捨てる（`capture.log` に `not saved`）
 - 拡張子は `.png` / `.jpg` / `.jpeg` で、同じ `key` が複数あればこの順に先のものを使う（クライアントの手元の `screenshots/` も同じ順）。`Content-Type` は拡張子ではなく中身（先頭のシグネチャ）で決めるので、外部で PNG ⇔ JPEG に変換して拡張子が合わなくても返せる。チェックサムなどは持たず、ファイル名だけで結びつける
 
 ### `GET /api/rivals` / `GET /api/rivals/scores`

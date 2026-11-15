@@ -38,6 +38,8 @@ namespace Reflux.ServerMonitor
         readonly ComboBox cbShotFormat = Combo(220);
         readonly ComboBox cbShotPngLevel = Combo(300);
         readonly NumericUpDown numShotJpegQuality = new NumericUpDown { Minimum = 50, Maximum = 100, DecimalPlaces = 0, Increment = 1, Width = 70 };
+        /// <summary>One per ScreenshotSettings.Kinds: keep the screenshot of that kind of result</summary>
+        readonly CheckBox[] chkShotKinds = ScreenshotSettings.Kinds.Select(k => new CheckBox { Text = k.label, AutoSize = true, Tag = k.kind }).ToArray();
         readonly ComboBox cbPoll = Combo(260), cbPlayPoll = Combo(260), cbResultPoll = Combo(260), cbUnlock = Combo(260), cbTracker = Combo(260), cbPriority = Combo(260), cbSession = Combo(260);
         readonly Label lblCore = new Label { AutoSize = true, ForeColor = SystemColors.GrayText };
         readonly Label lblResult = new Label { AutoSize = true, Padding = new Padding(0, 6, 0, 0) };
@@ -106,6 +108,13 @@ namespace Reflux.ServerMonitor
                 Row(g, "形式", cbShotFormat);
                 Row(g, "PNG の圧縮", cbShotPngLevel);
                 Row(g, "JPEG の品質（50〜100）", numShotJpegQuality);
+                var kinds = new FlowLayoutPanel { FlowDirection = FlowDirection.TopDown, AutoSize = true, WrapContents = false, Margin = Padding.Empty };
+                kinds.Controls.AddRange(chkShotKinds);
+                Row(g, "保存するリザルト", kinds);
+                var kindNote = new Label { AutoSize = true, ForeColor = SystemColors.GrayText, MaximumSize = new Size(520, 0),
+                    Text = "自己ベスト更新は、クリアランプ・EXスコア・ミスカウントのどれかがプレー前のゲームの自己ベストより良くなったもの（DJ LEVEL は EX スコアに含まれる）。" +
+                           "段位ゲージの完走はクリアに入れ、EXスコアとミスカウントで比べます。HARD・EX HARD・段位ゲージで自分で閉じたプレーは、今は「途中落ち」になります。" };
+                g.Controls.Add(kindNote); g.SetColumnSpan(kindNote, 2);
                 var shotNote = new Label { AutoSize = true, ForeColor = SystemColors.GrayText, MaximumSize = new Size(520, 0),
                     Text = "リザルト画面が出たら撮り続け、左の成績パネルの演出が止まった1枚を残します（止まらないまま画面を抜けたときは、抜ける直前の1枚）。" +
                            "Reflux のフォルダの screenshots に、プレーの記録と同じ日時・曲・譜面の名前で保存します。Score Manager のプレー履歴から開けます。" };
@@ -200,6 +209,7 @@ namespace Reflux.ServerMonitor
             Select(cbShotFormat, ScreenshotSettings.Jpeg);
             Select(cbShotPngLevel, ScreenshotSettings.PngLevel);
             numShotJpegQuality.Value = ScreenshotSettings.JpegQuality;
+            foreach (var c in chkShotKinds) { c.Checked = ScreenshotSettings.Keep((string)c.Tag); }
             chkApi.Checked = loadedConfig.ApiEnabled;
             Select(cbHost, loadedConfig.Host);
             numPort.Value = Math.Max(1, Math.Min(65535, loadedConfig.Port));
@@ -249,8 +259,10 @@ namespace Reflux.ServerMonitor
                 int shotLevel = Value(cbShotPngLevel) is int lv ? lv : 6;
                 int shotQuality = (int)numShotJpegQuality.Value;
                 if (chkShot.Checked != ScreenshotSettings.Enabled || shotMax != ScreenshotSettings.MaxBurstMs || shotJpeg != ScreenshotSettings.Jpeg ||
-                    shotLevel != ScreenshotSettings.PngLevel || shotQuality != ScreenshotSettings.JpegQuality)
+                    shotLevel != ScreenshotSettings.PngLevel || shotQuality != ScreenshotSettings.JpegQuality ||
+                    chkShotKinds.Any(c => c.Checked != ScreenshotSettings.Keep((string)c.Tag)))
                 {
+                    foreach (var c in chkShotKinds) { ScreenshotSettings.SetKeep((string)c.Tag, c.Checked); }
                     ScreenshotSettings.Enabled = chkShot.Checked;
                     ScreenshotSettings.MaxBurstMs = shotMax;
                     ScreenshotSettings.Jpeg = shotJpeg;
