@@ -53,6 +53,7 @@ namespace Reflux.ServerMonitor
             ("failed", "完走・FAILED", true),
             ("dead", "途中落ち（HARD / EX HARD / 段位）", true),
             ("quit", "自分で閉じた", false),
+            ("idle", "放置で落ちた（50ノーツ以上叩かなかった）", false),
             ("unrecorded", "プレーの記録が取れなかったもの", false),
         };
 

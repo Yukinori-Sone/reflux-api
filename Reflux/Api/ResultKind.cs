@@ -10,13 +10,15 @@ namespace Reflux.Api
     ///  - failed: played to the end, FAILED
     ///  - dead: ended before the end because the gauge ran out (HARD / EX HARD / DAN)
     ///  - quit: ended before the end, closed by the player
-    /// dead and quit come from the end state of each side in the judge data (JudgeLayout.P1EndState: 2 gauge ran out, 5 closed);
+    ///  - idle: ended before the end because 50 or more notes in a row were left unhit (any gauge, seen with EASY on 2026111100)
+    /// dead, quit and idle come from the end state of each side in the judge data (JudgeLayout.P1EndState: 2 gauge ran out,
+    /// 3 left unhit, 5 closed);
     /// when neither is there (layout moved), by the gauge: HARD / EX HARD / DAN = dead, others = quit.
     /// DOUBLE BATTLE / H-RANDOM plays (not kept by the game) and plays whose previous best is unknown count as pb when cleared.
     /// </summary>
     static class ResultKind
     {
-        const int EndGaugeOut = 2, EndClosed = 5;
+        const int EndGaugeOut = 2, EndIdle = 3, EndClosed = 5;
 
         /// <summary>Main loop thread, on the result screen (reads the judge data)</summary>
         public static string Of(PlayData play, (Lamp lamp, int exScore, int? missCount)? prev, int? missCount)
@@ -26,6 +28,7 @@ namespace Reflux.Api
                 var l = Layout.Judge;
                 int p1 = Utils.ReadInt32(Offsets.JudgeData, l.P1EndState), p2 = Utils.ReadInt32(Offsets.JudgeData, l.P2EndState);
                 if (p1 == EndClosed || p2 == EndClosed) { return "quit"; }
+                if (p1 == EndIdle || p2 == EndIdle) { return "idle"; }
                 if (p1 == EndGaugeOut || p2 == EndGaugeOut) { return "dead"; }
                 var g = play.Gauge;
                 return g == "OFF" || g == "ASSIST EASY" || g == "EASY" ? "quit" : "dead";

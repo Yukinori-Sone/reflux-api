@@ -462,7 +462,7 @@ namespace Reflux.Api
                 "2026111100 で確認。SP で閉じると両側が 5、DP では P1 側だけ。ゲージ残量はゲージが尽きても閉じても 0 になる",
                 new[] { C("id", "値", true), C("name", "意味") },
                 new object[] { 0, "最後まで完走" }, new object[] { 1, "プレーしていない側" }, new object[] { 2, "ゲージが尽きた（HARD・EX HARD・段位）" },
-                new object[] { 5, "自分で閉じた" });
+                new object[] { 3, "放置で落ちた（50ノーツ以上続けて叩かなかった。EASY でも落ちる）" }, new object[] { 5, "自分で閉じた" });
             yield return M("resultKind", "リザルトの区分",
                 "Reflux がプレーに付ける区分（/api/latest・/api/plays の resultKind。Api/ResultKind.cs）。モニターはこれで、リザルト画像を残すかどうか決める",
                 new[] { C("id", "コード"), C("name", "名前"), C("condition", "条件"), C("keep", "画像の保存（初期値）") },
@@ -472,6 +472,7 @@ namespace Reflux.Api
                 new object[] { "failed", "完走・FAILED", "", "保存する" },
                 new object[] { "dead", "途中落ち", "途中終了で、終わり方が 2（どちらも無ければ HARD・EX HARD・段位ゲージ）", "保存する" },
                 new object[] { "quit", "自分で閉じた", "途中終了で、終わり方が 5（どちらも無ければそれ以外のゲージ）", "保存しない" },
+                new object[] { "idle", "放置で落ちた", "途中終了で、終わり方が 3（50ノーツ以上続けて叩かなかった）", "保存しない" },
                 new object[] { "unrecorded", "プレーの記録が取れなかったもの", "モニターだけの区分（コアの記録が来なかった）", "保存しない" });
         }
     }
