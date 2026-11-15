@@ -144,7 +144,7 @@ namespace Reflux.Api
         };
         #endregion
 
-        static readonly string[] Order = { "song", "chart", "series", "pack", "mode", "playSide", "difficulty", "lamp", "djLevel", "grade", "pref", "graphTarget", "folder", "unlockType", "option" };
+        static readonly string[] Order = { "song", "chart", "series", "pack", "mode", "playSide", "difficulty", "lamp", "djLevel", "grade", "pref", "graphTarget", "folder", "unlockType", "option", "endState", "resultKind" };
         static readonly string[] ExeKeys = { "playSide", "difficulty", "lamp", "grade", "pref", "graphTarget", "folder" };
 
         /// <summary>
@@ -457,6 +457,22 @@ namespace Reflux.Api
             O("レーンカバー", "range", "OFF", "SUDDEN+", "HIDDEN+", "SUD+ & HID+", "LIFT", "LIFT & SUD+");
             yield return M("option", "オプション", "Reflux が読むオプションの値（layout.json の settings。P2 は +0x48）",
                 new[] { C("type", "種類"), C("field", "layout の項目"), C("id", "値", true), C("name", "名前") }, opts.ToArray());
+            yield return M("endState", "プレーの終わり方",
+                "判定データ（judgeData）の +0x48（P1）/ +0x4C（P2）。リザルト画面で読む（layout.json の judge.p1EndState / p2EndState）。" +
+                "2026111100 で確認。SP で閉じると両側が 5、DP では P1 側だけ。ゲージ残量はゲージが尽きても閉じても 0 になる",
+                new[] { C("id", "値", true), C("name", "意味") },
+                new object[] { 0, "最後まで完走" }, new object[] { 1, "プレーしていない側" }, new object[] { 2, "ゲージが尽きた（HARD・EX HARD・段位）" },
+                new object[] { 5, "自分で閉じた" });
+            yield return M("resultKind", "リザルトの区分",
+                "Reflux がプレーに付ける区分（/api/latest・/api/plays の resultKind。Api/ResultKind.cs）。モニターはこれで、リザルト画像を残すかどうか決める",
+                new[] { C("id", "コード"), C("name", "名前"), C("condition", "条件"), C("keep", "画像の保存（初期値）") },
+                new object[] { "first", "完走・クリア（初回）", "直前の自己ベストが NO PLAY・EX 0", "保存する" },
+                new object[] { "pb", "完走・クリア（自己ベスト更新あり）", "クリアランプ・EX スコア・ミスカウントのどれかが直前の自己ベストより良い（DJ LEVEL は EX に含まれる。段位ゲージの完走はランプを比べない）", "保存する" },
+                new object[] { "nopb", "完走・クリア（自己ベスト更新なし）", "どれも良くなっていない", "保存しない" },
+                new object[] { "failed", "完走・FAILED", "", "保存する" },
+                new object[] { "dead", "途中落ち", "途中終了で、終わり方が 2（どちらも無ければ HARD・EX HARD・段位ゲージ）", "保存する" },
+                new object[] { "quit", "自分で閉じた", "途中終了で、終わり方が 5（どちらも無ければそれ以外のゲージ）", "保存しない" },
+                new object[] { "unrecorded", "プレーの記録が取れなかったもの", "モニターだけの区分（コアの記録が来なかった）", "保存しない" });
         }
     }
 }

@@ -175,6 +175,8 @@ curl -X PUT "$A/settings" -d '{"unlockCheckSeconds":-1,"trackerTsv":"onChange","
 | `folder` | 選曲画面のフォルダ | exe | No・名前（推定）・種別・画像名・ボイス番号（170件） |
 | `unlockType` | 解禁種別 | reflux | ID・名前・内容 |
 | `option` | オプション | reflux | 種類・layout の項目・値・名前 |
+| `endState` | プレーの終わり方 | reflux | 値（judgeData +0x48 / +0x4C）・意味 |
+| `resultKind` | リザルトの区分 | reflux | コード・名前・条件・画像の保存（初期値） |
 
 `tables` で頼んだときだけ返す表（`source` は `reflux`。ゲームのメモリは読まず、コアが持っている曲・譜面・クリアレートのスナップショットから組み立てる。`Api/MasterTables.cs`）:
 
