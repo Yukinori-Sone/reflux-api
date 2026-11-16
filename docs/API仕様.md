@@ -106,6 +106,7 @@
 - `unsaved` / `battle` / `hran`（2026-11-04 から）: ゲームがプレーデータを書かず自己ベストにも残さないプレー（DOUBLE BATTLE・H-RANDOM）にだけ付く（`unsaved` = `true`、`battle` / `hran` = `true` / `false`）。Reflux が選曲中の譜面・判定・ゲージ・オプションから組み立てたもの（`Api/UnsavedPlay.cs`）: 譜面は選曲中の難易度の段＋左右で判定があれば DP（DOUBLE BATTLE は SP の譜面）、ランプはゲージの種類と残り（ASSIST EASY 60%・EASY/ノーマル 80%・HARD/EX HARD 生存、アシスト付きは ASSIST CLEAR、コンボが切れなければ FC）、`notecount` は DOUBLE BATTLE なら SP の2倍（AUTO SCRATCH でも）、DJ LEVEL はそのノーツ数で計算。`prevLamp` 等は無い。`tracker.db`・`bestdetail.json`・サーバー送信・JSON のセッションには入れない
 - クライアントは `sessionPlays` が変わるたびに、手元の最新の `timestamp` を `since` にして差分を取る
 
+
 ### `GET /api/screenshots` / `GET|DELETE /api/screenshot?key=...`
 
 リザルト画面のスクリーンショット。撮るのはコアではなくタスクトレイのモニター（`RefluxAPIServerMonitor.exe`、ユーザーのセッションで動く。サービスのコアには画面が無い）で、実行フォルダの `screenshots/` に保存する。コアはそのフォルダを返すだけ。
