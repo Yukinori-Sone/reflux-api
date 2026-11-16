@@ -453,7 +453,7 @@ namespace Reflux.Api
             O("譜面（P1 / DP 左）", "style", "OFF", "RANDOM", "R-RANDOM", "S-RANDOM", "MIRROR", "SYNCHRONIZE RANDOM", "SYMMETRY RANDOM");
             O("譜面（DP 右）", "style2", "OFF", "RANDOM", "R-RANDOM", "S-RANDOM", "MIRROR", "SYNCHRONIZE RANDOM", "SYMMETRY RANDOM");
             O("ゲージ", "gauge", "OFF", "ASSIST EASY", "EASY", "HARD", "EX HARD");
-            O("アシスト", "assist", "OFF", "AUTO SCRATCH", "5KEYS", "LEGACY NOTE", "KEY ASSIST", "ANY KEY");
+            O("アシスト", "assist", "OFF", "AUTO SCRATCH", "LEGACY NOTE", "KEY ASSIST", "ANY KEY");
             O("レーンカバー", "range", "OFF", "SUDDEN+", "HIDDEN+", "SUD+ & HID+", "LIFT", "LIFT & SUD+");
             yield return M("option", "オプション", "Reflux が読むオプションの値（layout.json の settings。P2 は +0x48）",
                 new[] { C("type", "種類"), C("field", "layout の項目"), C("id", "値", true), C("name", "名前") }, opts.ToArray());

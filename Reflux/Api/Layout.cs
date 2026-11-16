@@ -726,7 +726,7 @@ namespace Reflux.Api
                 p2,
                 /* Values as decoded by Settings.cs */
                 legend = "style 0 OFF 1 RANDOM 2 R-RANDOM 3 S-RANDOM 4 MIRROR 5 SYNCHRONIZE 6 SYMMETRY / gauge 0 OFF 1 ASSIST EASY 2 EASY 3 HARD 4 EX HARD / " +
-                         "assist 0 OFF 1 AUTO SCRATCH 2 5KEYS 3 LEGACY NOTE 4 KEY ASSIST 5 ANY KEY / range 0 OFF 1 SUDDEN+ 2 HIDDEN+ 3 SUD+ & HID+ 4 LIFT 5 LIFT & SUD+",
+                         "assist 0 OFF 1 AUTO SCRATCH 2 LEGACY NOTE 3 KEY ASSIST 4 ANY KEY / range 0 OFF 1 SUDDEN+ 2 HIDDEN+ 3 SUD+ & HID+ 4 LIFT 5 LIFT & SUD+",
             };
         }
 
