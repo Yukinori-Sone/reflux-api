@@ -80,14 +80,14 @@
                 case 4: gauge = "EX HARD"; break;
             }
 
+            /* The game dropped 5KEYS in an update and the values after it moved up (LEGACY NOTE read as 2 on 2026111100) */
             switch (assistVal)
             {
                 case 0: assist = "OFF"; break;
                 case 1: assist = "AUTO SCRATCH"; break;
-                case 2: assist = "5KEYS"; break;
-                case 3: assist = "LEGACY NOTE"; break;
-                case 4: assist = "KEY ASSIST"; break;
-                case 5: assist = "ANY KEY"; break;
+                case 2: assist = "LEGACY NOTE"; break;
+                case 3: assist = "KEY ASSIST"; break;
+                case 4: assist = "ANY KEY"; break;
             }
 
             switch (rangeVal)
