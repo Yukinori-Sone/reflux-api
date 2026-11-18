@@ -12,6 +12,7 @@
         public int slow;
         public int combobreak;
         public bool prematureEnd;
+        public int measureEnd; /* Measure the play ended in when ended prematurely (the result screen's MEASURE), 0 otherwise */
         public bool quickRetry;
 
         public bool PFC { get { return (good + bad + poor) == 0; } }
@@ -61,6 +62,7 @@
             slow = p1slow + p2slow;
             combobreak = p1cb + p2cb;
             prematureEnd = p1measure_end + p2measure_end != 0;
+            measureEnd = System.Math.Max(p1measure_end, p2measure_end);
 
             quickRetry = pgreat + great + good + bad + poor == 0 && !prematureEnd;
         }

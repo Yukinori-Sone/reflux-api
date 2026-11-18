@@ -462,6 +462,12 @@ namespace Reflux.Api
                     int? miss = play.MissCountValid ? (int)play.MissCount : (int?)null;
                     var prev = play.Unsaved ? null : PlayCounts.PrevBest(play.Chart.songid, play.Chart.difficulty.ToString());
                     form["resultKind"] = ResultKind.Of(play, prev, miss);
+                    if (play.PrematureEnd)
+                    {
+                        /* Where it ended, as the result screen's DEAD / MEASURE: the notes passed are PG + GR + GD + combo breaks (BAD and missed notes) */
+                        form["endmeasure"] = play.MeasureEnd.ToString();
+                        form["endnote"] = (int.Parse(form["pgreat"]) + int.Parse(form["great"]) + int.Parse(form["good"]) + int.Parse(form["combobreak"])).ToString();
+                    }
                     PlayLog.Append(form, id, miss, prev);
                     /* A play ended prematurely still raises the game's EX score / lamp (miss is null for it); not one the game doesn't keep */
                     if (!play.Unsaved) { PlayCounts.Merge(play.Chart.songid, play.Chart.difficulty.ToString(), play.Lamp, play.ExScore, miss); }

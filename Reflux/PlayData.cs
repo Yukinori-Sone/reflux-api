@@ -46,6 +46,7 @@ namespace Reflux
         /// Play ended prematurely (Quit or failed HC/EXH or 50 consecutive misses in Normal Gauge)
         /// </summary>
         public bool PrematureEnd { get { return judges.prematureEnd; } }
+        public int MeasureEnd { get { return judges.measureEnd; } }
         public bool QuickRetry { get { return judges.quickRetry; } }
         /// <summary>
         /// True if miss count shouldn't be calculated and saved (When it's not shown in the result screens essentially)
