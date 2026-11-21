@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Net;
 using System.Text;
 using System.Threading;
@@ -18,6 +19,7 @@ namespace Reflux.Api
 
         public static void Start()
         {
+            Plugins.PluginHost.Load(); /* Before the listener, so the plugins' endpoints are there from the first request */
             var prefix = $"http://{Config.ApiServer_Host}:{Config.ApiServer_Port}/";
             listener = new HttpListener();
             listener.Prefixes.Add(prefix);
@@ -96,10 +98,10 @@ namespace Reflux.Api
                 {
                     case "":
                     case "/api":
-                        Write(ctx, 200, "{\"endpoints\":[\"GET /api/status\",\"GET /api/songs\",\"GET /api/charts\",\"GET /api/scores\",\"GET /api/latest\",\"GET /api/session\",\"GET /api/clearrates\",\"GET /api/rivals\",\"GET /api/rivals/scores\",\"GET /api/downloads\",\"GET /api/plays?since=&limit=&infinitasId=\",\"GET /api/masters?tables=\",\"GET /api/screenshots\",\"GET /api/screenshot?key=\",\"DELETE /api/screenshot?key=\",\"POST /api/attach/retry\"," +
+                        Write(ctx, 200, EndpointList("\"GET /api/status\",\"GET /api/songs\",\"GET /api/charts\",\"GET /api/scores\",\"GET /api/latest\",\"GET /api/session\",\"GET /api/clearrates\",\"GET /api/rivals\",\"GET /api/rivals/scores\",\"GET /api/plays?since=&limit=&infinitasId=\",\"GET /api/masters?tables=\",\"GET /api/screenshots\",\"GET /api/screenshot?key=\",\"DELETE /api/screenshot?key=\",\"POST /api/attach/retry\"," +
                             "\"GET /api/offsets\",\"PUT /api/offsets\",\"GET /api/memory/info\",\"GET /api/memory?address=&length=&format=hex|bin&encoding=sjis\"," +
                             "\"GET /api/memory/search?start=&length=&hex=|text=&encoding=|int32=|int64=&max=\"," +
-                            "\"GET /api/settings\",\"PUT /api/settings\",\"GET /api/layout\",\"PUT /api/layout\",\"GET|POST /api/layout/preview?start=&count=\"]}");
+                            "\"GET /api/settings\",\"PUT /api/settings\",\"GET /api/layout\",\"PUT /api/layout\",\"GET|POST /api/layout/preview?start=&count=\"]"));
                         return;
                     case "/api/layout": Write(ctx, 200, Layout.GetJson()); return;
                     case "/api/settings": Write(ctx, 200, CoreSettings.GetJson()); return;
@@ -122,7 +124,6 @@ namespace Reflux.Api
                     case "/api/clearrates": Write(ctx, 200, ApiState.ClearRatesJson(), ApiState.DataHeaders("clearRates")); return;
                     case "/api/rivals": Write(ctx, 200, ApiState.RivalsJson(), ApiState.DataHeaders("rivals")); return;
                     case "/api/rivals/scores": Write(ctx, 200, ApiState.RivalScoresJson(), ApiState.DataHeaders("rivals")); return;
-                    case "/api/downloads": Write(ctx, 200, ApiState.DownloadsJson(), ApiState.DataHeaders("downloads")); return;
                     case "/api/offsets": Write(ctx, 200, DebugApi.GetOffsetsJson()); return;
                     case "/api/memory/info":
                         {
@@ -133,6 +134,7 @@ namespace Reflux.Api
                     case "/api/memory": DebugApi.Dump(ctx); return;
                     case "/api/memory/search": DebugApi.Search(ctx); return;
                 }
+                if (Plugins.PluginHost.TryHandleGet(path, ctx)) { return; }
             }
             else if ((method == "PUT" || method == "POST") && path == "/api/offsets")
             {
@@ -194,6 +196,13 @@ namespace Reflux.Api
             }
             int limit = int.TryParse(q["limit"], out var l) ? Math.Clamp(l, 1, 100000) : 10000;
             Write(ctx, 200, Newtonsoft.Json.JsonConvert.SerializeObject(PlayLog.Read(since, limit, string.IsNullOrEmpty(q["infinitasId"]) ? null : q["infinitasId"])));
+        }
+
+        /// <summary>GET /api: the core's endpoints (a JSON array body without the closing bracket) and the plugins'</summary>
+        static string EndpointList(string coreEndpoints)
+        {
+            var plugin = Plugins.PluginHost.Endpoints().Select(e => Newtonsoft.Json.JsonConvert.ToString(e));
+            return "{\"endpoints\":[" + coreEndpoints + string.Concat(plugin.Select(e => "," + e)) + "]}";
         }
 
         static string ReadBody(HttpListenerRequest req)

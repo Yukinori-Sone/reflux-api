@@ -70,14 +70,15 @@
 | `songsRevision` / `scoresRevision` | 曲データ / 自己ベストを読み直すたびに増える。クライアントはこれが変わったときだけ取り直す |
 | `clearRatesRevision` | クリアレートの値が変わったときだけ増える（0 のうちは未取得） |
 | `rivalsRevision` | ライバルの一覧・スコアが変わったときだけ増える（0 のうちは未取得） |
-| `downloadsRevision` | ダウンロード済みの曲データ（`/api/downloads`）が変わったときだけ増える（0 のうちは未取得） |
+| `plugins` | 読み込んだプラグインの名前とバージョンの配列（下の「プラグイン」） |
+| `pluginRevisions` | プラグインが自分のデータに付ける更新番号（名前 → 回数）。そのデータが変わったときだけ増える。まだ無い名前は未取得 |
 | `sessionPlays` | 今回の起動以降に記録したプレー数 |
-| `dataWarnings` | アタッチ中に読めないデータの種類の配列（`rivals` / `clearRates` / `playCounts` / `downloads`）。INFINITAS の更新で静的ポインタや構造体が動いた可能性。読めれば消える。ライバルはアタッチから2分たつまで出さない（ゲームが受け取り中のことがある） |
+| `dataWarnings` | アタッチ中に読めないデータの種類の配列（`rivals` / `clearRates` / `playCounts`、プラグインが足す名前もある）。INFINITAS の更新で静的ポインタや構造体が動いた可能性。読めれば消える。ライバルはアタッチから2分たつまで出さない（ゲームが受け取り中のことがある） |
 | `serverTime` | 応答した時刻（UTC） |
 
 ### `GET /api/songs` / `charts` / `scores`
 
-`songs` / `charts` / `scores` / `clearrates` / `rivals` / `rivals/scores` / `downloads` は配列のまま返し、ヘッダーに `X-Read-At`（コアがそのデータをゲームから読んで内容が変わった時刻、UTC の ISO 8601）と `X-Game-Version`（そのときのゲームのバージョン）を付ける。まだ読んでいなければ付かない。songs と charts は同じ時刻
+`songs` / `charts` / `scores` / `clearrates` / `rivals` / `rivals/scores` は配列のまま返し、ヘッダーに `X-Read-At`（コアがそのデータをゲームから読んで内容が変わった時刻、UTC の ISO 8601）と `X-Game-Version`（そのときのゲームのバージョン）を付ける。まだ読んでいなければ付かない。songs と charts は同じ時刻
 
 - songs: `{id, title, title2, artist, genre, folder, unlockType, label, packItemId, titleReading, artistReading, listed}`。`titleReading` / `artistReading` は曲名・アーティストの読み（カタカナ。ゲームの並び替え用の表 `Api/SongReadings.cs`。選曲画面のフォルダの中はこの順。表に無い4曲と、読めなかったときは null。読めなかったときは選曲画面に戻るたびに数回読み直し、`status.dataWarnings` に `readings` が出る）。`packItemId` は楽曲パックの商品ID（解禁データの +0xC、`I1800001`〜。パックで売っている曲＝解禁種別 Sub だけ、ほかは null）。`label` は本家の `customtypes.txt` のラベル（2026-03 以降のパックは無い）。`listed` が false の曲はゲームの解禁データに無く、選曲画面に表示されない（BIT 等で解禁できる「未解禁」とは別。2026101400 では IIDX RED Ending (Ryu☆Remix)・Seven Times Four の2曲。クライアントでは NOT DISPLAYED）。`id` は5桁ゼロ埋め、`folder` はバージョンフォルダ番号（0 = 1st style、1 = substream、80 = INFINITAS）
 - charts: `{songId, difficulty, level, notes, bpm}`。`difficulty` は `SPB` `SPN` `SPH` `SPA` `SPL` `DPB` `DPN` `DPH` `DPA` `DPL`
@@ -89,12 +90,6 @@
 - `[{songId, difficulty, rate}]`。`rate` は全プレイヤーのクリアレート（%、小数第2位まで。ゲーム画面は小数第1位に四捨五入して表示）。値の無い譜面は含まない
 - サーバーの集計値をゲームが持っているもの（`layout.json` の `clearRate`）。コアは ready になったときと、選曲画面に戻るたびに読み直す
 
-### `GET /api/downloads`
-
-- `[{songId, sound, movie, graphic, downloadedAt}]`。ゲームがダウンロード済みの曲だけ（曲ID順）。`sound` / `movie` / `graphic` はバイト数（`movie`・`graphic` は無い曲が多く、無ければ null）。`downloadedAt` は音のファイルの更新日時（UTC）で、ダウンロードした日（＝その曲を初めてプレーした日）
-- ゲームは曲を初めてプレーするときにデータをダウンロードし、`<INFINITAS のフォルダ>\Resource\dlcache\` の `sound\<曲ID>.ifs`（音・譜面。どの曲にもある）・`movie\<曲ID>.bin`（背景動画）・`graphic\<曲ID>.ifs`（一部の曲の画像）に残す（2026111100 で確認。ファイルは先頭から暗号化されている）。`sound` があればダウンロード済みとする（実機ではプレー回数が 1 以上の曲と完全に一致した）。`movie` には曲ID以外の名前のファイル（イベントの動画など）もあるが返さない
-- INFINITAS のフォルダは bm2dx.exe の場所（`<フォルダ>\gameppm2dx.exe`）から決める。コアは選曲画面に戻るたびにフォルダの一覧（名前・サイズ・日時だけ。ファイルは開かない、約3000件）を読み直す。見つからなければ `status.dataWarnings` に `downloads`
-
 ### `GET /api/plays`
 
 - クエリ: `since`（ISO 8601。この時刻より後のプレーだけ）、`limit`（既定 10000、最大 100000）、`infinitasId`（そのプレイヤーだけ）
@@ -105,8 +100,8 @@
 - `resultKind`（2026-11-15 から）: リザルトの区分。モニターがリザルト画像を残すかどうかをこれで決める（`Api/ResultKind.cs`）。`/api/latest` にも付く。`first` = 完走・クリアで、その譜面の記録が無かった（直前の自己ベストが NO PLAY・EX 0）、`pb` / `nopb` = 完走・クリアで、直前の自己ベスト（`prevLamp` 等）よりクリアランプ・EX スコア・ミスカウントのどれかが良くなった／ならなかった（DJ LEVEL は EX スコアに含まれる。PERFECT は FC と同じ。段位ゲージの完走＝ランプ NO PLAY で途中終了でないものはクリアに入れ、EX とミスだけ比べる。直前の自己ベストが分からないプレーと DOUBLE BATTLE・H-RANDOM は `pb`）、`failed` = 完走・FAILED、`dead` = ゲージが尽きて途中で終わった、`quit` = 自分で閉じた、`idle` = 50ノーツ以上続けて叩かずに落ちた（どのゲージでも）。`dead` / `quit` / `idle` は判定データの各側の終わり方（`layout.json` の `judge.p1EndState` / `p2EndState`、judgeData +0x48 / +0x4C。2026111100 で確認: 0 = 完走、1 = プレーしていない側、2 = ゲージが尽きた、3 = 放置で落ちた、5 = 閉じた（両側とも））で見分ける（ゲージ残量はどちらも 0 で記録されるので使えない）。どちらの値も無ければ、ゲージで決める（HARD・EX HARD・段位 = `dead`、それ以外 = `quit`）
 - `endmeasure` / `endnote`（2026-11-18 から）: 途中で終わったプレーにだけ付く。リザルト画面の MEASURE（判定データ +0x40 / +0x44 の各側の大きいほう、本家の `P1MeasureEnd`）と DEAD（PG＋GR＋GD＋コンボブレイク＝通過したノーツ数。SOLID WYVERN SPL で DEAD 1985 / MEASURE 73 と一致）
 - `unsaved` / `battle` / `hran`（2026-11-04 から）: ゲームがプレーデータを書かず自己ベストにも残さないプレー（DOUBLE BATTLE・H-RANDOM）にだけ付く（`unsaved` = `true`、`battle` / `hran` = `true` / `false`）。Reflux が選曲中の譜面・判定・ゲージ・オプションから組み立てたもの（`Api/UnsavedPlay.cs`）: 譜面は選曲中の難易度の段＋左右で判定があれば DP（DOUBLE BATTLE は SP の譜面）、ランプはゲージの種類と残り（ASSIST EASY 60%・EASY/ノーマル 80%・HARD/EX HARD 生存、アシスト付きは ASSIST CLEAR、コンボが切れなければ FC）、`notecount` は DOUBLE BATTLE なら SP の2倍（AUTO SCRATCH でも）、DJ LEVEL はそのノーツ数で計算。`prevLamp` 等は無い。`tracker.db`・`bestdetail.json`・サーバー送信・JSON のセッションには入れない
+- `laneNotes` / `chargeNotes` / `backspinScratches` / `scratchNotes` / `judgedNotes`: プレーした譜面の内訳。コアは付けず、譜面を読むプラグインが入っているときだけ付く（項目の名前と意味はクライアントとの取り決め）。`laneNotes` はレーンごとのオブジェ数をカンマ区切りで、1P の鍵盤 1〜7・皿の8つ（2P にノーツのある譜面はさらに 2P の8つ）。CN・BSS は始点だけ数える（終点は `chargeNotes` / `backspinScratches` の数だけ足すとノーツ数になる）。`scratchNotes` は皿の数（BSS の始点を含む）。`judgedNotes` はアシストで消えるノーツを除いた、判定のあるノーツ数（AUTO SCRATCH = 皿と BSS の終点を除く、LEGACY NOTE = CN と BSS の終点を除く、ほかはノーツ数のまま）。DOUBLE BATTLE は SP の譜面の2倍（`laneNotes` は SP の譜面のまま）
 - クライアントは `sessionPlays` が変わるたびに、手元の最新の `timestamp` を `since` にして差分を取る
-
 
 ### `GET /api/screenshots` / `GET|DELETE /api/screenshot?key=...`
 
@@ -192,6 +187,19 @@ curl -X PUT "$A/settings" -d '{"unlockCheckSeconds":-1,"trackerTsv":"onChange","
 - クライアントのマスタータブの同名の表と同じ内容（クライアントは DB の JOIN で作っている）。違いは、シリーズ名がクライアントでは DB で変えられること、クライアントの曲の表には楽曲パックの名前の列が無いこと
 - コアが `ready` のときだけ今の内容を組み立てて返す。それ以外はキャッシュ（`cached: true`）。キャッシュも無く曲データも無ければ行が空で `warning` が付く
 - 負荷: ゲームのメモリは読まない。曲・クリアレートが変わったとき（`songsRevision` / `clearRatesRevision`）の最初のリクエストで表を組み立てて JSON にし、以降はそれを返すだけ。大きさは 2026111100（1899 曲・11719 譜面）で曲 約 0.9MB・譜面 約 1.8MB・シリーズと楽曲パック 10KB、`all` で約 2.4MB。ゲームPCで最初の1回が約 0.5 秒、以降は 0.1〜0.3 秒（ほとんど LAN の転送）。プレー中・リザルト画面を避けたいなら、`/api/status` の `gameState` が `songSelect` のときに呼び、`songsRevision` / `clearRatesRevision` が変わったときだけ取り直す
+
+## プラグイン
+
+`[Api]` が有効なとき、コアは起動時に Reflux.exe のフォルダの `plugins\*.dll` を読み込む（`Api/Plugins.cs`）。読めなかった DLL はコンソールに理由を出して飛ばす。
+
+- `Reflux.Plugins.IRefluxPlugin`（引数なしのコンストラクタを持つ public クラス）を実装し、`Reflux.dll`（netcoreapp3.1）を参照してビルドする。Reflux.dll・Newtonsoft.Json は実行中の Reflux.exe のものを使うので、プラグインのフォルダには置かない
+- `Initialize(IPluginHost host)` で受け取る `IPluginHost` でできること（`ApiVersion` = 1）:
+  - ゲーム: プロセスID・ゲームのバージョン・bm2dx のベースアドレス・exe のパス・メモリの読み取り（読むだけ）
+  - `layout.json` に自分の欄を登録する（`RegisterLayout`）。`GET /api/layout` に出て、`PUT /api/layout` で書き換えられる。どのプラグインも登録していない欄は消さずにそのまま残す（プラグインを外しても `layout.json` が壊れない）
+  - プレーの記録（リザルト画面、`/api/plays` に書く前）と、選曲画面に戻ったときの通知。プレーの記録には項目を足せる
+  - `GET` のエンドポイントの追加（`GET /api` の一覧にも出る）。`X-Api-Key` の確認はコアが先にする
+  - `status.pluginRevisions` の更新番号を増やす、`status.dataWarnings` に名前を出す、コンソールへの出力
+- 通知はメインループのスレッド、エンドポイントはスレッドプールで呼ぶ。プラグインの例外はコアが受け止めて `log.txt` に書く
 
 ## ゲーム更新対応用のエンドポイント（リクエストのたびにメモリを読む／ファイルを書く）
 

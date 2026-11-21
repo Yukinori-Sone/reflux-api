@@ -243,6 +243,11 @@ namespace Reflux.Api
         public ReadingLayout Reading = new ReadingLayout();
         public PlayerLayout Player = new PlayerLayout();
         public MastersLayout Masters = new MastersLayout();
+        /// <summary>
+        /// Sections registered by plugins (IPluginHost.RegisterLayout), and sections of layout.json no plugin claims (kept as they are,
+        /// so the file keeps them while the plugin isn't installed). Not a public field: the reflection over the core's sections skips it
+        /// </summary>
+        internal readonly Dictionary<string, object> Extra = Layout.NewSections();
     }
 
     /// <summary>
@@ -298,6 +303,34 @@ namespace Reflux.Api
         public static ClearRateLayout ClearRate => Current.ClearRate;
         public static RivalLayout Rival => Current.Rival;
         public static PlayerLayout Player => Current.Player;
+
+        /// <summary>Sections plugins registered: name → defaults</summary>
+        static readonly Dictionary<string, Func<object>> sections = new Dictionary<string, Func<object>>(StringComparer.OrdinalIgnoreCase);
+
+        public static void RegisterSection(string name, Func<object> defaults)
+        {
+            if (typeof(StructLayouts).GetFields(BindingFlags.Public | BindingFlags.Instance).Any(f => string.Equals(f.Name, name, StringComparison.OrdinalIgnoreCase)))
+            {
+                throw new ArgumentException($"layout section {name} is the core's");
+            }
+            lock (fileLock)
+            {
+                sections[name] = defaults;
+                current = null; /* Read layout.json again with the section */
+            }
+        }
+
+        internal static Dictionary<string, object> NewSections()
+        {
+            lock (fileLock) { return sections.ToDictionary(kv => kv.Key, kv => kv.Value(), StringComparer.OrdinalIgnoreCase); }
+        }
+
+        /// <summary>A plugin's section as in use, null when not registered</summary>
+        public static object Section(string name)
+        {
+            var c = Current;
+            lock (fileLock) { return c.Extra.TryGetValue(name, out var v) && !(v is JObject) ? v : null; }
+        }
 
         #region Parsing
         static Encoding GetEncoding(string name)
@@ -418,6 +451,13 @@ namespace Reflux.Api
                     _ => ToJson(v),
                 };
             }
+            if (layout is StructLayouts sl)
+            {
+                foreach (var kv in sl.Extra.OrderBy(kv => kv.Key, StringComparer.Ordinal))
+                {
+                    o[kv.Key] = kv.Value is JObject j ? j.DeepClone() : ToJson(kv.Value);
+                }
+            }
             return o;
         }
 
@@ -453,6 +493,19 @@ namespace Reflux.Api
             {
                 var f = fields.FirstOrDefault(x => string.Equals(x.Name, p.Name, StringComparison.OrdinalIgnoreCase));
                 var name = path + p.Name;
+                if (f == null && target is StructLayouts sl && p.Value is JObject section)
+                {
+                    if (sl.Extra.TryGetValue(p.Name, out var registered) && !(registered is JObject))
+                    {
+                        var err = Merge(registered, section, name + ".");
+                        if (err != null) { return err; }
+                    }
+                    else
+                    {
+                        sl.Extra[p.Name] = section.DeepClone(); /* No plugin has it: kept as it is */
+                    }
+                    continue;
+                }
                 if (f == null) { return $"unknown field {name} (known: {string.Join(", ", fields.Select(x => CamelCase(x.Name)))})"; }
                 if (f.FieldType == typeof(int))
                 {
