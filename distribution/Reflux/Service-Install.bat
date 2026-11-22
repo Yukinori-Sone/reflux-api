@@ -39,17 +39,17 @@ if errorlevel 1 (
 )
 sc description %SVC% "Reads beatmania IIDX INFINITAS play results and scores (read only) and serves them over HTTP. Reflux custom build." >nul
 sc failure %SVC% reset= 86400 actions= restart/60000/restart/60000/restart/60000 >nul
-rem Let users signed in at this PC start and stop the service (RefluxAPIServerMonitor.exe then works without a UAC prompt)
+rem Let users signed in at this PC start and stop the service (RefluxAPIManager.exe then works without a UAC prompt)
 powershell -NoProfile -Command "$s = ((sc.exe sdshow %SVC%) | Where-Object { $_ -match 'D:' }).Trim(); $ace = '(A;;CCLCSWRPWPDTLOCRRC;;;IU)'; if (-not $s.Contains($ace)) { $s = $s -replace '\(A;;[A-Z]*;;;IU\)', $ace; if (-not $s.Contains($ace)) { $s = $s -replace '^D:', ('D:' + $ace) } }; sc.exe sdset %SVC% $s | Out-Null; exit $LASTEXITCODE"
-if errorlevel 1 echo Could not allow users to start and stop the service: the monitor will ask for administrator rights instead.
+if errorlevel 1 echo Could not allow users to start and stop the service: RefluxAPIManager.exe will ask for administrator rights instead.
 sc start %SVC%
 echo.
 echo Registered and started. Check it with: sc query %SVC%
 echo Remove it with Service-UnInstall.bat.
-rem Start the tray monitor as the signed-in user (not elevated): it shows the state and settings and starts at logon from now on
-if exist "%~dp0RefluxAPIServerMonitor.exe" (
-  explorer.exe "%~dp0RefluxAPIServerMonitor.exe"
-  echo The tray monitor RefluxAPIServerMonitor.exe was started.
+rem Start the tray tool as the signed-in user (not elevated): it shows the state and settings and starts at logon from now on
+if exist "%~dp0RefluxAPIManager.exe" (
+  explorer.exe "%~dp0RefluxAPIManager.exe"
+  echo The tray tool RefluxAPIManager.exe was started.
 )
 pause
 exit /b 0

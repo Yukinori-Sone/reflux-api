@@ -107,13 +107,13 @@
 
 ### `GET /api/screenshots` / `GET|DELETE /api/screenshot?key=...`
 
-リザルト画面のスクリーンショット。撮るのはコアではなくタスクトレイのモニター（`RefluxAPIServerMonitor.exe`、ユーザーのセッションで動く。サービスのコアには画面が無い）で、実行フォルダの `screenshots/` に保存する。コアはそのフォルダを返すだけ。
+リザルト画面のスクリーンショット。撮るのはコアではなくタスクトレイの管理ツール Reflux API Manager（`RefluxAPIManager.exe`、Reflux.exe と同じフォルダに置き、ユーザーのセッションで動く。サービスのコアには画面が無い）で、実行フォルダの `screenshots/` に保存する。コアはそのフォルダを返すだけ。
 
 - ファイル名（拡張子を除いた部分が `key`）: `<プレー日時 UTC yyyyMMddTHHmmssZ>_<曲ID 5桁>_<譜面>`（例 `20261015T155011Z_23083_DPA`）。日時・曲・譜面は `/api/plays` の `timestamp`・`songid`・`diff` と同じなので、プレーと1対1で結びつく。プレーが記録されなかったときは `<撮った日時>_unrecorded`
 - `GET /api/screenshots`: `[{key, file, size, savedAt}]`
 - `GET /api/screenshot?key=...`: 画像そのもの。`key` の形が違えば `400`、無ければ `404`
 - `DELETE /api/screenshot?key=...`（2026-11-15 から）: その `key` の画像を拡張子に関係なくすべて消す。`200 {deleted: [ファイル名]}`、`key` の形が違えば `400`、無ければ `404`。クライアントの「リザルト画像を削除」が使う
-- どのリザルトを残すかはモニターの設定（「保存するリザルト」、`resultKind` ごと＋記録が取れなかったもの。HKCU の `ScreenshotKeep_<区分>`）。初期値は first・pb・failed・dead がオン、nopb・quit・idle・unrecorded がオフ（ユーザー指定）。オフの区分は撮ったあと記録を見て捨てる（`capture.log` に `not saved`）
+- どのリザルトを残すかはモニターの設定（「保存するリザルト」、`resultKind` ごと＋記録が取れなかったもの。Reflux API Manager の `RefluxAPIManager.json` の `ScreenshotKeep`）。初期値は first・pb・failed・dead がオン、nopb・quit・idle・unrecorded がオフ（ユーザー指定）。オフの区分は撮ったあと記録を見て捨てる（`capture.log` に `not saved`）
 - 拡張子は `.png` / `.jpg` / `.jpeg` で、同じ `key` が複数あればこの順に先のものを使う（クライアントの手元の `screenshots/` も同じ順）。`Content-Type` は拡張子ではなく中身（先頭のシグネチャ）で決めるので、外部で PNG ⇔ JPEG に変換して拡張子が合わなくても返せる。チェックサムなどは持たず、ファイル名だけで結びつける
 
 ### `GET /api/rivals` / `GET /api/rivals/scores`
@@ -142,7 +142,7 @@ curl -X PUT "$A/settings" -d '{"unlockCheckSeconds":-1,"trackerTsv":"onChange","
 
 ### 最新プレー・配信用ファイルの出力（`/api/outputs`、2026-11-22）
 
-`config.ini` の5項目を、コアのフォルダに触れずに読み書きする（Beat Shutter の設定画面が使う）。メインループは毎回この値を見るので、変えるとその場で効き、`config.ini` にも書く（コメント・並び・ほかの項目・改行コード・BOM はそのまま）。`[Api]` の項目（enabled・host・port・apikey）は API では変えない（変えると接続が切れるため。`config.ini` を直接書き、コアを起動し直す）。
+`config.ini` の5項目を、コアのフォルダに触れずに読み書きする（Reflux API Manager の設定画面が使う）。メインループは毎回この値を見るので、変えるとその場で効き、`config.ini` にも書く（コメント・並び・ほかの項目・改行コード・BOM はそのまま）。`[Api]` の項目（enabled・host・port・apikey）は API では変えない（変えると接続が切れるため。`config.ini` を直接書き、コアを起動し直す）。
 
 | キー | `config.ini` | 書き出すファイル |
 |---|---|---|

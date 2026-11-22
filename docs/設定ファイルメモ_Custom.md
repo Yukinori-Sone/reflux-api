@@ -126,9 +126,8 @@ New-NetFirewallRule -DisplayName "Reflux API" -Direction Inbound -Protocol TCP -
 - サービスのときは画面に窓が出ない。状態は API（`/api/status`）かクライアントで見る。エラーは `log.txt`
 - 同じフォルダの Reflux は1つしか動かない（あとから起動した方はメッセージを出して終了する）。サービスにしたら、スタートアップのショートカットは消す
 - オフセット不一致のときの対話式探索（コンソールで Enter）はサービスでは使えない。API（`PUT /api/offsets`）で直す
-- タスクトレイのモニター `RefluxAPIServerMonitor.exe`（配布物のコアのフォルダに入る。.NET Framework 4.8 で動くので追加のインストールは不要）: アイコンの色で状態（緑 = 監視中、黄 = INFINITAS 待ちなど、赤 = エラー・サービス停止・API 応答なし、灰 = サービス未登録で Reflux も止まっている）。左クリックで状態ウィンドウ（サービス・INFINITAS・ゲームの状態、INFINITAS ID、バージョン、API の設定、直近のプレー、log.txt の最後）、右クリックのメニューで設定（config.ini の `[Api]`（APIキーの生成・コピーのボタンあり）と配信用ファイル → 保存するとサービスを再起動、コアの動作設定 → API ですぐ反映）、サービスの開始・停止・再起動、フォルダ・log.txt を開く、ログオン時に起動（初回起動時にオン。`HKCU\...\Run`）
-- モニターはリザルト画面のスクリーンショットも撮る（設定ウィンドウで オン・オフ、撮り続ける最長時間、PNG / JPEG、PNG の圧縮（標準 = zlib 6 で 1.8MB・約1秒、最高 = 9 で 3% 小さく 5〜10 秒）、JPEG の品質（50〜100、初期値 92）。値は `HKCU\Software\RefluxAPIServerMonitor`）。PNG は行ごとにフィルターを選んで自前で書き出す（GDI+ の PNG は 2.8MB になっていた）。保存は連写のあとなので、圧縮に時間がかかっても撮る瞬間には影響しない。フルスクリーンの INFINITAS も撮れるよう Desktop Duplication を使う。コアがリザルト画面と判定した時点から 0.15 秒ごとに撮って 0.3 秒前のフレームと比べ、読み込み画面（黒）と抜けたあとの青い画面を除いて、左の成績パネルと中央が止まった1枚を残す（止まる前に抜けたら、それに近い1枚。クイックリトライは残さない）。調整用に `ScreenshotKeepBurst`（DWORD 1）を足すと、連写した全フレームを `screenshots/burst/` に残し、判定の値を `capture.log` に書く
-- `Service-Install.bat` は、ログオン中のユーザー（IU）にもこのサービスの開始・停止を許可する（`sc sdset`）。許可されていない環境では、モニターが UAC で管理者の確認を出す。config.ini に書き込めないときも同じく UAC で書く。登録の最後にモニターを（管理者ではなく）起動する
+- 状態の表示・設定の変更・サービスの開始停止・リザルト画面のスクリーンショットは、タスクトレイの管理ツール Reflux API Manager（`RefluxAPIManager.exe`、Reflux.exe と同じフォルダ。仕様は `RefluxAPIManager仕様.md`）
+- `Service-Install.bat` は、ログオン中のユーザー（IU）にもこのサービスの開始・停止を許可する（`sc sdset`）。許可されていない環境では、Reflux API Manager が UAC で管理者の確認を出す。登録の最後に Reflux API Manager を（管理者ではなく）起動する
 
 本家の不具合として直したものは [本家不具合修正一覧.md](本家不具合修正一覧.md) にも記録している。
 

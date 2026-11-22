@@ -9,7 +9,7 @@ using System.Text.RegularExpressions;
 namespace Reflux.Api
 {
     /// <summary>
-    /// Result screen screenshots taken by RefluxAPIServerMonitor.exe (the core can't take them when it runs as a service) in
+    /// Result screen screenshots taken by Reflux API Manager (RefluxAPIManager.exe, the tray tool next to Reflux.exe; the core can't take them when it runs as a service) in
     /// screenshots\, named after the play: &lt;play time UTC yyyyMMddTHHmmssZ&gt;_&lt;song id&gt;_&lt;difficulty&gt;.png|jpg|jpeg (the file name only; the format is read from the content).
     /// GET /api/screenshots lists them, GET /api/screenshot?key=... returns one, DELETE /api/screenshot?key=... removes one.
     /// </summary>

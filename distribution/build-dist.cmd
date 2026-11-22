@@ -1,5 +1,5 @@
 @echo off
-rem Build the distribution set into dist\<mode>: Reflux (core), RefluxScoreManager (client) and a zip of each.
+rem Build the distribution set into dist\<mode>: Reflux (core with its tray tool RefluxAPIManager.exe), RefluxScoreManager (client) and a zip of each.
 rem Called by build-dist-self-contained.bat / build-dist-framework-dependent.bat in the repository root.
 rem   self-contained       : the client includes the .NET runtime (about 50 MB, nothing to install)
 rem   framework-dependent  : the client needs the .NET 9 Desktop Runtime (about 2.5 MB)
@@ -43,12 +43,12 @@ copy /y "Reflux\segment-display.js" "%DIST%\Reflux\" >nul
 copy /y "LICENSE" "%DIST%\Reflux\" >nul
 copy /y "distribution\Reflux\*.txt" "%DIST%\Reflux\" >nul
 copy /y "distribution\Reflux\*.bat" "%DIST%\Reflux\" >nul
-rem Tray monitor for the service (.NET Framework 4.8, nothing to install)
-dotnet build RefluxAPIServerMonitor\RefluxAPIServerMonitor.csproj -c Release -nologo -v q -o "%DIST%\monitor-build"
+rem Tray tool next to Reflux.exe (.NET Framework 4.8, nothing to install)
+dotnet build RefluxAPIManager\RefluxAPIManager.csproj -c Release -nologo -v q -o "%DIST%\manager-build"
 if errorlevel 1 goto :failed
-copy /y "%DIST%\monitor-build\RefluxAPIServerMonitor.exe" "%DIST%\Reflux\" >nul
-copy /y "%DIST%\monitor-build\RefluxAPIServerMonitor.exe.config" "%DIST%\Reflux\" >nul
-rmdir /s /q "%DIST%\monitor-build"
+copy /y "%DIST%\manager-build\RefluxAPIManager.exe" "%DIST%\Reflux\" >nul
+copy /y "%DIST%\manager-build\RefluxAPIManager.exe.config" "%DIST%\Reflux\" >nul
+rmdir /s /q "%DIST%\manager-build"
 
 echo.
 echo === Client (RefluxScoreManager) ===

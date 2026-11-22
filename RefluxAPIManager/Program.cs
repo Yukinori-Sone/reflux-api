@@ -4,13 +4,15 @@ using System.Reflection;
 using System.Threading;
 using System.Windows.Forms;
 
-namespace Reflux.ServerMonitor
+namespace RefluxAPIManager
 {
     static class Program
     {
+        public const string Title = "Reflux API Manager";
+
         /// <summary>
         /// Normal start: tray monitor (one per user session). --status / --settings also open that window at start.
-        /// Elevated helpers started by the monitor itself: --service start|stop|restart, --write-config &lt;file&gt;
+        /// Elevated helpers started by Reflux API Manager itself: --service start|stop|restart, --write-config &lt;temp file&gt; &lt;config.ini&gt;
         /// </summary>
         [STAThread]
         static int Main(string[] args)
@@ -19,15 +21,20 @@ namespace Reflux.ServerMonitor
             if (args.Length >= 2 && args[0] == "--service")
             {
                 try { ServiceControl.Do(args[1]); return 0; }
-                catch (Exception e) { MessageBox.Show(e.Message, "Reflux API Server Monitor"); return 1; }
+                catch (Exception e) { MessageBox.Show(e.Message, Title); return 1; }
             }
-            if (args.Length >= 2 && args[0] == "--write-config")
+            if (args.Length >= 3 && args[0] == "--write-config")
             {
-                try { File.Copy(args[1], RefluxFolder.ConfigPath, true); return 0; }
-                catch (Exception e) { MessageBox.Show(e.Message, "Reflux API Server Monitor"); return 1; }
+                try
+                {
+                    if (!string.Equals(Path.GetFileName(args[2]), "config.ini", StringComparison.OrdinalIgnoreCase)) { throw new ArgumentException("config.ini 以外には書きません: " + args[2]); }
+                    File.Copy(args[1], args[2], true);
+                    return 0;
+                }
+                catch (Exception e) { MessageBox.Show(e.Message, Title); return 1; }
             }
 
-            using var mutex = new Mutex(true, @"Local\RefluxAPIServerMonitor", out bool first);
+            using var mutex = new Mutex(true, @"Local\RefluxAPIManager", out bool first);
             if (!first) { return 0; } /* Already in the tray */
             Application.EnableVisualStyles();
             Application.SetCompatibleTextRenderingDefault(false);

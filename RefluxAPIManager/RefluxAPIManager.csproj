@@ -1,7 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <!--
-    Tray monitor for the Reflux API Server service on the game PC. Targets .NET Framework 4.8, which every Windows 10/11
+    Reflux API Manager: tray tool next to Reflux.exe for the Reflux API Server service on the game PC (state, settings, service control) and the result screen screenshots. Targets .NET Framework 4.8, which every Windows 10/11
     already has: no runtime to install and a small exe next to Reflux.exe.
   -->
   <PropertyGroup>
@@ -11,12 +11,12 @@
     <LangVersion>latest</LangVersion>
     <Nullable>disable</Nullable>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
-    <RootNamespace>Reflux.ServerMonitor</RootNamespace>
-    <AssemblyName>RefluxAPIServerMonitor</AssemblyName>
+    <RootNamespace>RefluxAPIManager</RootNamespace>
+    <AssemblyName>RefluxAPIManager</AssemblyName>
     <Version>0.1.0</Version>
-    <Product>Reflux API Server Monitor</Product>
-    <AssemblyTitle>Reflux API Server Monitor</AssemblyTitle>
-    <ApplicationIcon>..\Reflux\Resources\icon.ico</ApplicationIcon>
+    <Product>Reflux API Manager</Product>
+    <AssemblyTitle>Reflux API Manager</AssemblyTitle>
+    <ApplicationIcon>Resources\icon.ico</ApplicationIcon>
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <GenerateDocumentationFile>false</GenerateDocumentationFile>
   </PropertyGroup>
@@ -35,12 +35,11 @@
   </ItemGroup>
 
   <ItemGroup>
-    <EmbeddedResource Include="..\Reflux\Resources\icon.ico" LogicalName="icon.ico" />
+    <EmbeddedResource Include="Resources\icon.ico" LogicalName="icon.ico" />
   </ItemGroup>
 
   <!--
-    SharpDX (Desktop Duplication for the result screenshots) and SharpZipLib (their PNG compression) go inside the exe, so the monitor stays a single file next to
-    Reflux.exe. Program.LoadEmbeddedAssembly loads it from the resources.
+    SharpDX (Desktop Duplication for the result screenshots) and SharpZipLib (their PNG compression) go inside the exe, so the monitor stays a single file. Program.LoadEmbeddedAssembly loads it from the resources.
   -->
   <Target Name="EmbedReferencedAssemblies" AfterTargets="ResolveReferences">
     <ItemGroup>

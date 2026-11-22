@@ -5,7 +5,7 @@ using System.Drawing;
 using System.ServiceProcess;
 using System.Windows.Forms;
 
-namespace Reflux.ServerMonitor
+namespace RefluxAPIManager
 {
     /// <summary>State of the service and the core, refreshed at every poll while open</summary>
     sealed class StatusForm : Form
@@ -16,7 +16,7 @@ namespace Reflux.ServerMonitor
         readonly Label logTitle = new Label { Text = "log.txt の最後（エラーの記録）", Dock = DockStyle.Top, AutoSize = true, Padding = new Padding(10, 6, 0, 4) };
         static readonly string[] Rows =
         {
-            "サービス", "Reflux", "INFINITAS", "ゲーム", "プレー中の譜面", "INFINITAS ID", "バージョン", "API", "今回の記録", "直近のプレー", "スクリーンショット", "メッセージ", "最終確認",
+            "Reflux API サービス", "Reflux", "INFINITAS", "ゲーム", "プレー中の譜面", "INFINITAS ID", "バージョン", "API", "今回の記録", "直近のプレー", "スクリーンショット", "メッセージ", "最終確認",
         };
 
         public StatusForm()
@@ -57,7 +57,7 @@ namespace Reflux.ServerMonitor
             var green = Color.ForestGreen;
             var red = Color.Firebrick;
             var orange = Color.DarkOrange;
-            Set("サービス", Snapshot.ServiceJa(s.Service) + (s.Service == null ? "（Service-Install.bat で登録できます）" : "（RefluxAPIServer）"),
+            Set("Reflux API サービス", Snapshot.ServiceJa(s.Service) + (s.Service == null ? "（Reflux の Service-Install.bat で登録できます）" : $"（{ServiceControl.Name}）"),
                 s.Service == ServiceControllerStatus.Running ? green : s.Service == null ? (Color?)null : red);
             var st = s.Status;
             Set("Reflux", st != null ? "応答あり" : "応答なし: " + s.ApiError, st != null ? green : red);
@@ -68,11 +68,12 @@ namespace Reflux.ServerMonitor
             Set("INFINITAS ID", st?.InfinitasId == null ? null : IdText(st.InfinitasId));
             Set("バージョン", st == null ? null : $"Reflux {st.RefluxVersion} / ゲーム {st.GameVersion ?? "-"} / オフセット {st.OffsetsVersion ?? "-"}");
             var c = s.Config;
-            Set("API", c == null ? null : (c.ApiEnabled ? "有効" : "無効") + $"　{(c.Host == "+" ? "LAN に公開" : c.Host == "localhost" ? "このPCだけ" : c.Host)}　ポート {c.Port}　APIキー {(string.IsNullOrEmpty(c.ApiKey) ? "なし" : "あり")}");
+            Set("API", c == null ? "config.ini がありません" :
+                (c.ApiEnabled ? "有効" : "無効") + $"　{(c.Host == "+" ? "LAN に公開" : c.Host == "localhost" ? "このPCだけ" : c.Host)}　ポート {c.Port}　APIキー {(string.IsNullOrEmpty(c.ApiKey) ? "なし" : "あり")}");
             Set("今回の記録", st == null ? null : $"{st.SessionPlays} プレー（Reflux の起動以降）");
             string L(string k) => s.Latest != null && s.Latest.TryGetValue(k, out var v) ? v : null;
             Set("直近のプレー", s.Latest == null ? null : $"{L("title")} [{L("diff")}]  {L("lamp")}  EX {L("exscore")}  {(L("timestamp") is string t && DateTime.TryParse(t, out var dt) ? dt.ToLocalTime().ToString("MM/dd HH:mm") : "")}");
-            Set("スクリーンショット", !ScreenshotSettings.Enabled ? "撮らない" : ResultScreenshot.LastSaved == null ? "リザルト画面で撮る（まだ撮っていない）" : "最後: " + System.IO.Path.GetFileName(ResultScreenshot.LastSaved));
+            Set("スクリーンショット", !ScreenshotSettings.Enabled ? "撮らない" :  ResultScreenshot.LastSaved == null ? "リザルト画面で撮る（まだ撮っていない）" : "最後: " + System.IO.Path.GetFileName(ResultScreenshot.LastSaved));
             var message = string.Join("　", new[] { Snapshot.DataWarningsJa(st?.DataWarnings), st?.Message }.Where(t => !string.IsNullOrEmpty(t)));
             Set("メッセージ", message, message.Length > 0 ? red : (Color?)null);
             Set("最終確認", s.At.ToString("HH:mm:ss"));

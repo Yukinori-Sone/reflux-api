@@ -10,7 +10,7 @@ using System.ServiceProcess;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 
-namespace Reflux.ServerMonitor
+namespace RefluxAPIManager
 {
     /// <summary>What the monitor knows at one poll</summary>
     sealed class Snapshot
@@ -88,8 +88,8 @@ namespace Reflux.ServerMonitor
                 {
                     text = AttachStateJa(Status.AttachState) + (Status.AttachState == "ready" ? "（" + GameStateJa(Status.GameState) + "）" : "") + (HasDataWarnings ? "・一部読めず" : "");
                 }
-                else if (Service == null) { text = "サービス未登録・Reflux 停止"; }
-                else if (Service != ServiceControllerStatus.Running) { text = "サービス" + ServiceJa(Service); }
+                else if (Service == null) { text = "Reflux API サービス未登録・Reflux 停止"; }
+                else if (Service != ServiceControllerStatus.Running) { text = "Reflux API サービス" + ServiceJa(Service); }
                 else { text = "API が応答しません"; }
                 text = "Reflux: " + text;
                 return text.Length > 63 ? text.Substring(0, 63) : text;
@@ -103,10 +103,10 @@ namespace Reflux.ServerMonitor
         readonly NotifyIcon tray = new NotifyIcon();
         readonly Timer timer = new Timer { Interval = 1000 }; /* 1 s, 0.3 s while playing, 0.1 s on the result screen: the result screen screenshot starts and stops from this poll */
         readonly Dictionary<Snapshot.Level, Icon> icons = new Dictionary<Snapshot.Level, Icon>();
-        readonly ToolStripMenuItem miStart = new ToolStripMenuItem("サービスを開始");
-        readonly ToolStripMenuItem miStop = new ToolStripMenuItem("サービスを停止");
-        readonly ToolStripMenuItem miRestart = new ToolStripMenuItem("サービスを再起動");
-        readonly ToolStripMenuItem miAutoStart = new ToolStripMenuItem("ログオン時にこのモニターを起動");
+        readonly ToolStripMenuItem miStart = new ToolStripMenuItem("Reflux API サービスを開始");
+        readonly ToolStripMenuItem miStop = new ToolStripMenuItem("Reflux API サービスを停止");
+        readonly ToolStripMenuItem miRestart = new ToolStripMenuItem("Reflux API サービスを再起動");
+        readonly ToolStripMenuItem miAutoStart = new ToolStripMenuItem("ログオン時に Reflux API Manager を起動");
         StatusForm statusForm;
         SettingsForm settingsForm;
         bool polling;
@@ -136,7 +136,10 @@ namespace Reflux.ServerMonitor
             miStop.Click += async (_, __) => await ControlService("stop");
             miRestart.Click += async (_, __) => await ControlService("restart");
             menu.Items.AddRange(new ToolStripItem[] { miStart, miStop, miRestart, new ToolStripSeparator() });
-            menu.Items.Add(new ToolStripMenuItem("Reflux のフォルダを開く", null, (_, __) => Open(RefluxFolder.Dir)));
+            menu.Items.Add(new ToolStripMenuItem("Reflux のフォルダを開く", null, (_, __) =>
+            {
+                Open(RefluxFolder.Dir);
+            }));
             menu.Items.Add(new ToolStripMenuItem("スクリーンショットのフォルダを開く", null, (_, __) =>
             {
                 Directory.CreateDirectory(ResultScreenshot.Folder);
@@ -145,12 +148,12 @@ namespace Reflux.ServerMonitor
             menu.Items.Add(new ToolStripMenuItem("log.txt を開く", null, (_, __) =>
             {
                 if (File.Exists(RefluxFolder.LogPath)) { Open(RefluxFolder.LogPath); }
-                else { MessageBox.Show("log.txt はまだありません（エラーが起きると作られます）", "Reflux API Server Monitor"); }
+                else { MessageBox.Show("log.txt はまだありません（エラーが起きると作られます）", Program.Title); }
             }));
             menu.Items.Add(new ToolStripSeparator());
             miAutoStart.Click += (_, __) => { AutoStart.Enabled = !AutoStart.Enabled; miAutoStart.Checked = AutoStart.Enabled; };
             menu.Items.Add(miAutoStart);
-            menu.Items.Add(new ToolStripMenuItem("モニターを終了", null, (_, __) => ExitThread()));
+            menu.Items.Add(new ToolStripMenuItem("Reflux API Manager を終了", null, (_, __) => ExitThread()));
             menu.Opening += (_, __) =>
             {
                 var s = Last?.Service;
@@ -200,23 +203,16 @@ namespace Reflux.ServerMonitor
                 var snap = await Task.Run(async () =>
                 {
                     var s = new Snapshot { Service = ServiceControl.Status() };
-                    try { s.Config = RefluxConfig.Read(); } catch { s.Config = new RefluxConfig(); }
-                    if (s.Config.ApiEnabled)
+                    try { s.Config = RefluxConfig.Read(RefluxFolder.ConfigPath); } catch { s.Config = null; }
+                    using var api = new CoreApi();
+                    try
                     {
-                        using var api = new CoreApi(s.Config);
-                        try
-                        {
-                            s.Status = await api.StatusAsync().ConfigureAwait(false);
-                            s.Latest = await api.LatestAsync().ConfigureAwait(false);
-                        }
-                        catch (Exception e)
-                        {
-                            s.ApiError = (e.InnerException ?? e).Message;
-                        }
+                        s.Status = await api.StatusAsync().ConfigureAwait(false);
+                        s.Latest = await api.LatestAsync().ConfigureAwait(false);
                     }
-                    else
+                    catch (Exception e)
                     {
-                        s.ApiError = "config.ini の [Api] enabled が false です";
+                        s.ApiError = s.Config != null && !s.Config.ApiEnabled ? "config.ini の [Api] enabled が false です" : (e.InnerException ?? e).Message;
                     }
                     return s;
                 });
@@ -229,7 +225,7 @@ namespace Reflux.ServerMonitor
                 tray.Text = snap.Summary;
                 if (lastLevel.HasValue && lastLevel != level && level == Snapshot.Level.Error)
                 {
-                    tray.ShowBalloonTip(5000, "Reflux API Server", snap.Summary + (snap.Status?.Message != null ? "\n" + snap.Status.Message : ""), ToolTipIcon.Warning);
+                    tray.ShowBalloonTip(5000, Program.Title, snap.Summary + (snap.Status?.Message != null ? "\n" + snap.Status.Message : ""), ToolTipIcon.Warning);
                 }
                 lastLevel = level;
                 statusForm?.ShowSnapshot(snap);
@@ -242,9 +238,9 @@ namespace Reflux.ServerMonitor
 
         async Task ControlService(string action)
         {
-            tray.Text = "Reflux: サービスを操作中...";
+            tray.Text = "Reflux: Reflux API サービスを操作中...";
             var error = await Task.Run(() => ServiceControl.Run(action));
-            if (error != null) { MessageBox.Show(error, "Reflux API Server Monitor", MessageBoxButtons.OK, MessageBoxIcon.Warning); }
+            if (error != null) { MessageBox.Show(error, Program.Title, MessageBoxButtons.OK, MessageBoxIcon.Warning); }
             await Poll();
         }
 
@@ -277,7 +273,7 @@ namespace Reflux.ServerMonitor
         static void Open(string path)
         {
             try { Process.Start(new ProcessStartInfo(path) { UseShellExecute = true }); }
-            catch (Exception e) { MessageBox.Show(e.Message, "Reflux API Server Monitor"); }
+            catch (Exception e) { MessageBox.Show(e.Message, Program.Title); }
         }
 
         protected override void ExitThreadCore()

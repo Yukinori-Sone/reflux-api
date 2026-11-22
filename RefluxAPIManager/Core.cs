@@ -11,15 +11,14 @@ using System.ServiceProcess;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Reflux.ServerMonitor
+namespace RefluxAPIManager
 {
-    /// <summary>The Reflux folder: the monitor lives next to Reflux.exe and config.ini</summary>
+    /// <summary>The Reflux folder: Reflux API Manager lives next to Reflux.exe, config.ini, log.txt and screenshots\</summary>
     static class RefluxFolder
     {
         public static readonly string Dir = AppDomain.CurrentDomain.BaseDirectory.TrimEnd('\\');
         public static string ConfigPath => Path.Combine(Dir, "config.ini");
         public static string LogPath => Path.Combine(Dir, "log.txt");
-        public static string RefluxExe => Path.Combine(Dir, "Reflux.exe");
 
         /// <summary>Last lines of log.txt (written by the service, shared for reading)</summary>
         public static string LogTail(int lines)
@@ -111,52 +110,43 @@ namespace Reflux.ServerMonitor
         }
     }
 
-    /// <summary>The [Api] and output settings Reflux reads from config.ini at start</summary>
+    /// <summary>
+    /// The [Api] section of the core's config.ini, read at its start. Reflux API Manager writes it directly (the API can't change
+    /// where it listens without cutting the connection); the other settings it changes go through the API.
+    /// </summary>
     sealed class RefluxConfig
     {
         public bool ApiEnabled;
         public string Host = "localhost";
         public int Port = 8790;
         public string ApiKey = "";
-        public bool LatestJson, LatestTxt, PlayState, Marquee, FullSongInfo;
 
-        public static RefluxConfig Read()
+        /// <summary>null when the file isn't there</summary>
+        public static RefluxConfig Read(string path)
         {
-            var c = new RefluxConfig();
-            if (!File.Exists(RefluxFolder.ConfigPath)) { return c; }
-            var ini = IniFile.Load(RefluxFolder.ConfigPath);
-            c.ApiEnabled = ini.GetBool("Api", "enabled");
-            c.Host = ini.Get("Api", "host", "localhost");
-            c.Port = int.TryParse(ini.Get("Api", "port"), out var p) ? p : 8790;
-            c.ApiKey = ini.Get("Api", "apikey");
-            c.LatestJson = ini.GetBool("Record", "savelatestjson");
-            c.LatestTxt = ini.GetBool("Record", "savelatesttxt");
-            c.PlayState = ini.GetBool("Livestream", "showplaystate");
-            c.Marquee = ini.GetBool("Livestream", "enablemarquee");
-            c.FullSongInfo = ini.GetBool("Livestream", "enablefullsonginfo");
-            return c;
+            if (path == null || !File.Exists(path)) { return null; }
+            var ini = IniFile.Load(path);
+            return new RefluxConfig
+            {
+                ApiEnabled = ini.GetBool("Api", "enabled"),
+                Host = ini.Get("Api", "host", "localhost"),
+                Port = int.TryParse(ini.Get("Api", "port"), out var p) ? p : 8790,
+                ApiKey = ini.Get("Api", "apikey"),
+            };
         }
 
-        /// <summary>config.ini with these values, everything else untouched</summary>
-        public byte[] Apply()
+        /// <summary>The file with these values, everything else untouched</summary>
+        public byte[] Apply(string path)
         {
-            var ini = IniFile.Load(RefluxFolder.ConfigPath);
-            string B(bool b) => b ? "true" : "false";
-            ini.Set("Api", "enabled", B(ApiEnabled));
+            var ini = IniFile.Load(path);
+            ini.Set("Api", "enabled", ApiEnabled ? "true" : "false");
             ini.Set("Api", "host", Host);
             ini.Set("Api", "port", Port.ToString());
             ini.Set("Api", "apikey", ApiKey);
-            ini.Set("Record", "savelatestjson", B(LatestJson));
-            ini.Set("Record", "savelatesttxt", B(LatestTxt));
-            ini.Set("Livestream", "showplaystate", B(PlayState));
-            ini.Set("Livestream", "enablemarquee", B(Marquee));
-            ini.Set("Livestream", "enablefullsonginfo", B(FullSongInfo));
             return ini.ToBytes();
         }
 
-        public bool SameAs(RefluxConfig o) =>
-            ApiEnabled == o.ApiEnabled && Host == o.Host && Port == o.Port && ApiKey == o.ApiKey && LatestJson == o.LatestJson &&
-            LatestTxt == o.LatestTxt && PlayState == o.PlayState && Marquee == o.Marquee && FullSongInfo == o.FullSongInfo;
+        public bool SameAs(RefluxConfig o) => o != null && ApiEnabled == o.ApiEnabled && Host == o.Host && Port == o.Port && ApiKey == o.ApiKey;
     }
 
     #region API
@@ -196,6 +186,20 @@ namespace Reflux.ServerMonitor
         [DataMember(Name = "sessionFile", EmitDefaultValue = false)] public string SessionFile { get; set; }
     }
 
+    /// <summary>GET|PUT /api/outputs: the latest play and stream overlay files (config.ini of the core, applied at once)</summary>
+    [DataContract]
+    sealed class OutputValues
+    {
+        [DataMember(Name = "latestJson")] public bool LatestJson { get; set; }
+        [DataMember(Name = "latestTxt")] public bool LatestTxt { get; set; }
+        [DataMember(Name = "playState")] public bool PlayState { get; set; }
+        [DataMember(Name = "marquee")] public bool Marquee { get; set; }
+        [DataMember(Name = "fullSongInfo")] public bool FullSongInfo { get; set; }
+
+        public bool SameAs(OutputValues o) =>
+            o != null && LatestJson == o.LatestJson && LatestTxt == o.LatestTxt && PlayState == o.PlayState && Marquee == o.Marquee && FullSongInfo == o.FullSongInfo;
+    }
+
     [DataContract]
     sealed class CoreSettingsResponse
     {
@@ -203,15 +207,37 @@ namespace Reflux.ServerMonitor
         [DataMember(Name = "defaults")] public CoreSettingsValues Defaults { get; set; }
     }
 
-    /// <summary>The core's API on this PC (http://localhost:port works for host = localhost and host = +)</summary>
+    /// <summary>
+    /// The core's API on this PC (http://localhost:port works for host = localhost and host = +). Port and key come from the
+    /// core's config.ini, read each time (they are where the core listens); RefluxAPIManager.json keeps the last ones read for when
+    /// config.ini can't be read
+    /// </summary>
     sealed class CoreApi : IDisposable
     {
         readonly HttpClient http;
 
-        public CoreApi(RefluxConfig config)
+        public CoreApi() : this(Connection()) { }
+
+        CoreApi((int port, string key) c) : this(c.port, c.key) { }
+
+        static (int, string) Connection()
         {
-            http = new HttpClient { BaseAddress = new Uri($"http://localhost:{config.Port}/"), Timeout = TimeSpan.FromSeconds(3) };
-            if (!string.IsNullOrEmpty(config.ApiKey)) { http.DefaultRequestHeaders.Add("X-Api-Key", config.ApiKey); }
+            var s = ManagerSettings.Current;
+            RefluxConfig c = null;
+            try { c = RefluxConfig.Read(RefluxFolder.ConfigPath); } catch { /* Locked for a moment: the last values */ }
+            if (c != null && (c.Port != s.Port || c.ApiKey != (s.ApiKey ?? "")))
+            {
+                s.Port = c.Port;
+                s.ApiKey = c.ApiKey;
+                try { s.Save(); } catch { /* Kept in memory */ }
+            }
+            return (s.Port, s.ApiKey);
+        }
+
+        public CoreApi(int port, string apiKey)
+        {
+            http = new HttpClient { BaseAddress = new Uri($"http://localhost:{port}/"), Timeout = TimeSpan.FromSeconds(3) };
+            if (!string.IsNullOrEmpty(apiKey)) { http.DefaultRequestHeaders.Add("X-Api-Key", apiKey); }
         }
 
         static T Parse<T>(string json) where T : class
@@ -242,10 +268,23 @@ namespace Reflux.ServerMonitor
         public async Task<Dictionary<string, string>> LatestAsync() => Parse<Dictionary<string, string>>(await Get("api/latest").ConfigureAwait(false));
         public async Task<CoreSettingsResponse> SettingsAsync() => Parse<CoreSettingsResponse>(await Get("api/settings").ConfigureAwait(false));
 
-        public async Task PutSettingsAsync(CoreSettingsValues values)
+        /// <summary>null from a core without /api/outputs (before 2026-11-22)</summary>
+        public async Task<OutputValues> OutputsAsync()
         {
-            using var content = new StringContent(ToJson(values), Encoding.UTF8, "application/json");
-            using var res = await http.PutAsync("api/settings", content).ConfigureAwait(false);
+            using var res = await http.GetAsync("api/outputs").ConfigureAwait(false);
+            if (res.StatusCode == System.Net.HttpStatusCode.NotFound) { return null; }
+            var body = await res.Content.ReadAsStringAsync().ConfigureAwait(false);
+            if (!res.IsSuccessStatusCode) { throw new HttpRequestException($"{(int)res.StatusCode}: {body}"); }
+            return Parse<OutputValues>(body);
+        }
+
+        public Task PutSettingsAsync(CoreSettingsValues values) => Put("api/settings", ToJson(values));
+        public Task PutOutputsAsync(OutputValues values) => Put("api/outputs", ToJson(values));
+
+        async Task Put(string path, string json)
+        {
+            using var content = new StringContent(json, Encoding.UTF8, "application/json");
+            using var res = await http.PutAsync(path, content).ConfigureAwait(false);
             var body = await res.Content.ReadAsStringAsync().ConfigureAwait(false);
             if (!res.IsSuccessStatusCode) { throw new HttpRequestException($"{(int)res.StatusCode}: {body}"); }
         }
@@ -255,12 +294,12 @@ namespace Reflux.ServerMonitor
     #endregion
 
     /// <summary>
-    /// The RefluxAPIServer service. Service-Install.bat lets interactive users start and stop it; where that wasn't granted, the
-    /// monitor runs itself elevated (UAC) for the operation.
+    /// The core's service (RefluxAPIServer unless set otherwise). Service-Install.bat lets interactive users start and stop it;
+    /// where that wasn't granted, Reflux API Manager runs itself elevated (UAC) for the operation.
     /// </summary>
     static class ServiceControl
     {
-        public const string Name = "RefluxAPIServer";
+        public static string Name => ManagerSettings.Current.ServiceName;
 
         /// <summary>null when the service isn't registered</summary>
         public static ServiceControllerStatus? Status()
@@ -311,7 +350,7 @@ namespace Reflux.ServerMonitor
             }
             catch (System.ServiceProcess.TimeoutException)
             {
-                return "サービスの状態が30秒たっても変わりませんでした";
+                return "Reflux API サービスの状態が30秒たっても変わりませんでした";
             }
             catch (Exception e)
             {
@@ -342,12 +381,11 @@ namespace Reflux.ServerMonitor
         }
     }
 
-    /// <summary>Starting the monitor at logon (HKCU Run). Turned on at the first start unless the user turned it off</summary>
+    /// <summary>Starting Reflux API Manager at logon (HKCU Run). Turned on at the first start unless the user turned it off</summary>
     static class AutoStart
     {
         const string RunKey = @"Software\Microsoft\Windows\CurrentVersion\Run";
-        const string ValueName = "RefluxAPIServerMonitor";
-        const string PrefKey = @"Software\RefluxAPIServerMonitor";
+        const string ValueName = "RefluxAPIManager";
 
         public static bool Enabled
         {
@@ -363,15 +401,19 @@ namespace Reflux.ServerMonitor
                     if (value) { k.SetValue(ValueName, $"\"{System.Windows.Forms.Application.ExecutablePath}\""); }
                     else { k.DeleteValue(ValueName, false); }
                 }
-                using var pref = Microsoft.Win32.Registry.CurrentUser.CreateSubKey(PrefKey);
-                pref.SetValue("AutoStartChosen", 1);
+                var s = ManagerSettings.Current;
+                if (!s.AutoStartChosen)
+                {
+                    s.AutoStartChosen = true;
+                    try { s.Save(); } catch { /* Asked again at the next start */ }
+                }
             }
         }
 
+        /// <summary>Turned on at the first start; also points the logon start at this exe when the folder was moved</summary>
         public static void EnableOnFirstRun()
         {
-            using var pref = Microsoft.Win32.Registry.CurrentUser.OpenSubKey(PrefKey);
-            if (pref?.GetValue("AutoStartChosen") == null) { Enabled = true; }
+            if (!ManagerSettings.Current.AutoStartChosen || Enabled) { Enabled = true; }
         }
     }
 }

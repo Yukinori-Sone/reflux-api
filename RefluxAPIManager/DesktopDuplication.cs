@@ -7,7 +7,7 @@ using Device = SharpDX.Direct3D11.Device;
 using MapFlags = SharpDX.Direct3D11.MapFlags;
 using Resource = SharpDX.DXGI.Resource;
 
-namespace Reflux.ServerMonitor
+namespace RefluxAPIManager
 {
     /// <summary>
     /// Frames of one screen through the DXGI Desktop Duplication API, which also sees exclusive fullscreen games (a GDI screen

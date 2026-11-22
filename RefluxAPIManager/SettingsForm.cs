@@ -5,11 +5,12 @@ using System.Linq;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 
-namespace Reflux.ServerMonitor
+namespace RefluxAPIManager
 {
     /// <summary>
-    /// config.ini ([Api] and the stream / latest files, applied by restarting the service) and the core settings (through the
-    /// API, applied at once)
+    /// Reflux API Manager's own settings (RefluxAPIManager.json: the screenshots; applied at once), the
+    /// core's [Api] in its config.ini (written directly, applied by restarting the service) and, through the API, the stream /
+    /// latest files and the core settings (applied at once)
     /// </summary>
     sealed class SettingsForm : Form
     {
@@ -27,12 +28,14 @@ namespace Reflux.ServerMonitor
         readonly CheckBox chkShowKey = new CheckBox { Text = "表示", AutoSize = true };
         readonly Button btnGenerate = new Button { Text = "生成", AutoSize = true };
         readonly Button btnCopy = new Button { Text = "コピー", AutoSize = true };
-        readonly CheckBox chkApi = new CheckBox { Text = "API を有効にする（Score Manager から見るのに必要）", AutoSize = true };
+        readonly CheckBox chkApi = new CheckBox { Text = "API を有効にする（Beat Ledger などのクライアントから見るのに必要）", AutoSize = true };
+        readonly Label lblApi = new Label { AutoSize = true, ForeColor = SystemColors.GrayText, MaximumSize = new Size(520, 0) };
         readonly CheckBox chkLatestJson = new CheckBox { Text = "latest.json", AutoSize = true };
         readonly CheckBox chkLatestTxt = new CheckBox { Text = "latest.txt・latest-*.txt", AutoSize = true };
         readonly CheckBox chkPlayState = new CheckBox { Text = "playstate.txt", AutoSize = true };
         readonly CheckBox chkMarquee = new CheckBox { Text = "marquee.txt", AutoSize = true };
         readonly CheckBox chkSongInfo = new CheckBox { Text = "title.txt・artist.txt など（曲情報）", AutoSize = true };
+        readonly Label lblOutputs = new Label { AutoSize = true, ForeColor = SystemColors.GrayText, MaximumSize = new Size(520, 0) };
         readonly CheckBox chkShot = new CheckBox { Text = "リザルト画面でスクリーンショットを撮る", AutoSize = true };
         readonly NumericUpDown numShotMax = new NumericUpDown { Minimum = 3, Maximum = 30, DecimalPlaces = 0, Increment = 1, Width = 70 };
         readonly ComboBox cbShotFormat = Combo(220);
@@ -45,7 +48,10 @@ namespace Reflux.ServerMonitor
         readonly Label lblResult = new Label { AutoSize = true, Padding = new Padding(0, 6, 0, 0) };
         readonly Button btnSave = new Button { Text = "保存して反映", AutoSize = true };
         readonly Button btnClose = new Button { Text = "閉じる", AutoSize = true };
+        /// <summary>config.ini as loaded, null when there is none (the [Api] group is off)</summary>
         RefluxConfig loadedConfig;
+        string loadedConfigPath;
+        OutputValues loadedOutputs;
         CoreSettingsValues loadedCore;
 
         static ComboBox Combo(int width) => new ComboBox { DropDownStyle = ComboBoxStyle.DropDownList, Width = width };
@@ -53,7 +59,7 @@ namespace Reflux.ServerMonitor
         public SettingsForm(TrayContext tray)
         {
             this.tray = tray;
-            Text = "Reflux API Server の設定";
+            Text = "Reflux API Manager の設定";
             AutoSize = true;
             AutoSizeMode = AutoSizeMode.GrowAndShrink;
             FormBorderStyle = FormBorderStyle.FixedDialog;
@@ -63,13 +69,13 @@ namespace Reflux.ServerMonitor
             using (var s = typeof(SettingsForm).Assembly.GetManifestResourceStream("icon.ico")) { Icon = new Icon(s); }
 
             cbHost.Items.AddRange(new object[] { new Choice("localhost", "このPCだけ（localhost）"), new Choice("+", "LAN の別PCからも（+）") });
-            cbPoll.Items.AddRange(new object[] { new Choice(500, "0.5秒"), new Choice(1000, "1秒"), new Choice(2000, "2秒（初期値・本家と同じ）"), new Choice(3000, "3秒"), new Choice(5000, "5秒") });
-            cbPlayPoll.Items.AddRange(new object[] { new Choice(250, "0.25秒"), new Choice(500, "0.5秒"), new Choice(1000, "1秒"), new Choice(2000, "2秒（初期値・本家と同じ）"), new Choice(3000, "3秒"), new Choice(5000, "5秒") });
-            cbResultPoll.Items.AddRange(new object[] { new Choice(100, "0.1秒"), new Choice(250, "0.25秒"), new Choice(500, "0.5秒（初期値）"), new Choice(1000, "1秒"), new Choice(2000, "2秒（本家と同じ）"), new Choice(3000, "3秒"), new Choice(5000, "5秒") });
-            cbUnlock.Items.AddRange(new object[] { new Choice(0, "毎回（初期値・本家と同じ）"), new Choice(10, "10秒ごと"), new Choice(30, "30秒ごと"), new Choice(60, "60秒ごと"), new Choice(-1, "選曲画面に戻ったときだけ") });
-            cbTracker.Items.AddRange(new object[] { new Choice("always", "毎回書き直す（本家と同じ）"), new Choice("onChange", "変化があったときだけ"), new Choice("never", "書き出さない（初期値）") });
-            cbPriority.Items.AddRange(new object[] { new Choice("normal", "通常（初期値・本家と同じ）"), new Choice("belowNormal", "通常以下"), new Choice("idle", "低") });
-            cbSession.Items.AddRange(new object[] { new Choice("perStart", "Reflux の起動ごと（本家と同じ）"), new Choice("daily", "日ごと"), new Choice("monthly", "月ごと（初期値）"), new Choice("single", "1つのファイル"), new Choice("none", "出力しない") });
+            cbPoll.Items.AddRange(new object[] { new Choice(500, "0.5秒"), new Choice(1000, "1秒"), new Choice(2000, "2秒（初期値・Reflux本家と同じ）"), new Choice(3000, "3秒"), new Choice(5000, "5秒") });
+            cbPlayPoll.Items.AddRange(new object[] { new Choice(250, "0.25秒"), new Choice(500, "0.5秒"), new Choice(1000, "1秒"), new Choice(2000, "2秒（初期値・Reflux本家と同じ）"), new Choice(3000, "3秒"), new Choice(5000, "5秒") });
+            cbResultPoll.Items.AddRange(new object[] { new Choice(100, "0.1秒"), new Choice(250, "0.25秒"), new Choice(500, "0.5秒（初期値）"), new Choice(1000, "1秒"), new Choice(2000, "2秒（Reflux本家と同じ）"), new Choice(3000, "3秒"), new Choice(5000, "5秒") });
+            cbUnlock.Items.AddRange(new object[] { new Choice(0, "毎回（初期値・Reflux本家と同じ）"), new Choice(10, "10秒ごと"), new Choice(30, "30秒ごと"), new Choice(60, "60秒ごと"), new Choice(-1, "選曲画面に戻ったときだけ") });
+            cbTracker.Items.AddRange(new object[] { new Choice("always", "毎回書き直す（Reflux本家と同じ）"), new Choice("onChange", "変化があったときだけ"), new Choice("never", "書き出さない（初期値）") });
+            cbPriority.Items.AddRange(new object[] { new Choice("normal", "通常（初期値・Reflux本家と同じ）"), new Choice("belowNormal", "通常以下"), new Choice("idle", "低") });
+            cbSession.Items.AddRange(new object[] { new Choice("perStart", "Reflux の起動ごと（Reflux本家と同じ）"), new Choice("daily", "日ごと"), new Choice("monthly", "月ごと（初期値）"), new Choice("single", "1つのファイル"), new Choice("none", "出力しない") });
             chkShowKey.CheckedChanged += (_, __) => txtKey.UseSystemPasswordChar = !chkShowKey.Checked;
             btnGenerate.Click += (_, __) => GenerateKey();
             btnCopy.Click += (_, __) =>
@@ -79,8 +85,11 @@ namespace Reflux.ServerMonitor
                 MessageBox.Show(this, "APIキーをクリップボードにコピーしました。", Text, MessageBoxButtons.OK, MessageBoxIcon.Information);
             };
 
-            var root = new FlowLayoutPanel { FlowDirection = FlowDirection.TopDown, AutoSize = true, WrapContents = false, Dock = DockStyle.Fill };
-            root.Controls.Add(Group("API（config.ini。保存するとサービスを再起動して反映）", g =>
+            /* One tab per part, so the window fits a usual screen. Save / close and the result stay below the tabs */
+            var pageConnect = Page();
+            var pageShot = Page();
+            var pageCore = Page();
+            pageConnect.Controls.Add(Group("Reflux API Server の API（config.ini。保存すると Reflux API サービスを再起動して反映）", g =>
             {
                 g.Controls.Add(chkApi); g.SetColumnSpan(chkApi, 2);
                 Row(g, "公開範囲", cbHost);
@@ -91,24 +100,26 @@ namespace Reflux.ServerMonitor
                 var note = new Label
                 {
                     AutoSize = true, ForeColor = SystemColors.GrayText, MaximumSize = new Size(520, 0),
-                    Text = "ポートや APIキーを変えたら、Score Manager の接続設定も合わせてください。LAN に公開するポートを変えたときは、ファイアウォールでそのポートの受信を許可してください（サービスで動かしている場合、netsh の URL 予約は不要です）。",
+                    Text = "オフにすると、このツールの状態表示・スクリーンショット・「動作設定」タブも使えなくなります（どれも API を通して Reflux API Server とやりとりするため）。" +
+                           "ポートや APIキーを変えたら、Beat Ledger などのクライアントの接続設定も合わせてください。LAN に公開するポートを変えたときは、ファイアウォールでそのポートの受信を許可してください（サービスで動かしている場合、netsh の URL 予約は不要です）。",
                 };
                 g.Controls.Add(note); g.SetColumnSpan(note, 2);
+                g.Controls.Add(lblApi); g.SetColumnSpan(lblApi, 2);
             }));
-            root.Controls.Add(Group("配信用・最新プレーのファイル出力（config.ini。保存するとサービスを再起動して反映）", g =>
+            pageCore.Controls.Add(Group("配信用・最新プレーのファイル出力（API で変更。保存するとすぐ反映）", g =>
             {
-                foreach (var c in new Control[] { chkLatestJson, chkLatestTxt, chkPlayState, chkMarquee, chkSongInfo }) { g.Controls.Add(c); g.SetColumnSpan(c, 2); }
+                foreach (var c in new Control[] { chkLatestJson, chkLatestTxt, chkPlayState, chkMarquee, chkSongInfo, lblOutputs }) { g.Controls.Add(c); g.SetColumnSpan(c, 2); }
             }));
             cbShotFormat.Items.AddRange(new object[] { new Choice(false, "PNG（劣化なし）"), new Choice(true, "JPEG（劣化あり、軽い）") });
             cbShotPngLevel.Items.AddRange(new object[] { new Choice(6, "標準（1枚 1.8MB 前後）"), new Choice(9, "最高（3% ほど小さく、保存に5〜10秒）") });
-            root.Controls.Add(Group("リザルト画面のスクリーンショット（このモニターが撮る。保存するとすぐ反映）", g =>
+            pageShot.Controls.Add(Group("リザルト画面のスクリーンショット（Reflux API Manager が撮る。保存するとすぐ反映）", g =>
             {
                 g.Controls.Add(chkShot); g.SetColumnSpan(chkShot, 2);
                 Row(g, "撮り続ける最長時間（秒）", numShotMax);
                 Row(g, "形式", cbShotFormat);
                 Row(g, "PNG の圧縮", cbShotPngLevel);
                 Row(g, "JPEG の品質（50〜100）", numShotJpegQuality);
-                var kinds = new FlowLayoutPanel { FlowDirection = FlowDirection.TopDown, AutoSize = true, WrapContents = false, Margin = Padding.Empty };
+                var kinds = new TableLayoutPanel { ColumnCount = 2, AutoSize = true, Margin = Padding.Empty };
                 kinds.Controls.AddRange(chkShotKinds);
                 Row(g, "保存するリザルト", kinds);
                 var kindNote = new Label { AutoSize = true, ForeColor = SystemColors.GrayText, MaximumSize = new Size(520, 0),
@@ -117,10 +128,11 @@ namespace Reflux.ServerMonitor
                 g.Controls.Add(kindNote); g.SetColumnSpan(kindNote, 2);
                 var shotNote = new Label { AutoSize = true, ForeColor = SystemColors.GrayText, MaximumSize = new Size(520, 0),
                     Text = "リザルト画面が出たら撮り続け、左の成績パネルの演出が止まった1枚を残します（止まらないまま画面を抜けたときは、抜ける直前の1枚）。" +
-                           "Reflux のフォルダの screenshots に、プレーの記録と同じ日時・曲・譜面の名前で保存します。Score Manager のプレー履歴から開けます。" };
+                           "Reflux のフォルダの screenshots に、プレーの記録と同じ日時・曲・譜面の名前で保存します。Beat Ledger などのクライアントから見られます。" +
+                           "\n設定ファイル: " + ManagerSettings.FilePath };
                 g.Controls.Add(shotNote); g.SetColumnSpan(shotNote, 2);
             }));
-            root.Controls.Add(Group("コアの動作設定（API で変更。保存するとすぐ反映）", g =>
+            pageCore.Controls.Add(Group("Reflux API Server の動作設定（API で変更。保存するとすぐ反映）", g =>
             {
                 Row(g, "監視間隔（選曲画面）", cbPoll);
                 Row(g, "監視間隔（プレー中）", cbPlayPoll);
@@ -131,6 +143,25 @@ namespace Reflux.ServerMonitor
                 Row(g, "セッションTSVの単位", cbSession);
                 g.Controls.Add(lblCore); g.SetColumnSpan(lblCore, 2);
             }));
+            var tabs = new TabControl { Margin = new Padding(0, 0, 0, 6) };
+            foreach (var (title, panel) in new[] { ("API", pageConnect), ("スクリーンショット", pageShot), ("動作設定", pageCore) })
+            {
+                var tab = new TabPage(title) { Padding = new Padding(6), UseVisualStyleBackColor = true };
+                tab.Controls.Add(panel);
+                tabs.TabPages.Add(tab);
+            }
+            /* A TabControl doesn't size itself: as large as the largest page, measured once the form is scaled to the screen
+               (with the status lines filled in as they will be) */
+            lblOutputs.Text = lblCore.Text = lblApi.Text = "Reflux API Server から読み込み中...";
+            Load += (_, __) =>
+            {
+                var largest = new[] { pageConnect, pageShot, pageCore }.Select(p => p.GetPreferredSize(Size.Empty)).ToArray();
+                var page = tabs.DisplayRectangle;
+                tabs.Size = new Size(tabs.Width - page.Width + largest.Max(s => s.Width) + 16, tabs.Height - page.Height + largest.Max(s => s.Height) + 16);
+            };
+
+            var root = new FlowLayoutPanel { FlowDirection = FlowDirection.TopDown, AutoSize = true, WrapContents = false, Dock = DockStyle.Fill };
+            root.Controls.Add(tabs);
             var buttons = new FlowLayoutPanel { AutoSize = true, WrapContents = false };
             buttons.Controls.Add(btnSave);
             buttons.Controls.Add(btnClose);
@@ -147,7 +178,7 @@ namespace Reflux.ServerMonitor
         void GenerateKey()
         {
             if (txtKey.Text.Trim().Length > 0 &&
-                MessageBox.Show(this, "今の APIキーを新しいキーに置き換えます。\n保存すると、今のキーを入れている Score Manager からは接続できなくなります。よろしいですか？",
+                MessageBox.Show(this, "今の APIキーを新しいキーに置き換えます。\n保存すると、今のキーを入れているクライアント（Beat Ledger など）からは接続できなくなります。よろしいですか？",
                     Text, MessageBoxButtons.OKCancel, MessageBoxIcon.Question, MessageBoxDefaultButton.Button2) != DialogResult.OK)
             {
                 return;
@@ -159,10 +190,13 @@ namespace Reflux.ServerMonitor
             try { Clipboard.SetText(key); } catch (Exception e) { MessageBox.Show(this, "クリップボードにコピーできませんでした: " + e.Message, Text); return; }
             MessageBox.Show(this,
                 "新しい APIキーを作り、クリップボードにコピーしました。\n\n" +
-                "1. 「保存して反映」で Reflux に反映してください（サービスが再起動します）。\n" +
-                "2. Reflux INFINITAS Score Manager の「APIキー」欄にも同じキーを貼り付けてください。",
+                "1. 「保存して反映」で Reflux に反映してください（Reflux API サービスが再起動します）。\n" +
+                "2. Beat Ledger などのクライアントの「APIキー」欄にも同じキーを貼り付けてください。",
                 Text, MessageBoxButtons.OK, MessageBoxIcon.Information);
         }
+
+        static FlowLayoutPanel Page() =>
+            new FlowLayoutPanel { FlowDirection = FlowDirection.TopDown, AutoSize = true, WrapContents = false, Dock = DockStyle.Fill, AutoScroll = true };
 
         static GroupBox Group(string title, Action<TableLayoutPanel> fill)
         {
@@ -190,42 +224,72 @@ namespace Reflux.ServerMonitor
 
         static object Value(ComboBox cb) => (cb.SelectedItem as Choice)?.Value;
 
+        Control[] ApiControls => new Control[] { chkApi, cbHost, numPort, txtKey, btnGenerate, btnCopy, chkShowKey };
+        CheckBox[] OutputBoxes => new[] { chkLatestJson, chkLatestTxt, chkPlayState, chkMarquee, chkSongInfo };
+
         async Task LoadValues()
         {
-            lblResult.Text = "";
-            try
-            {
-                loadedConfig = RefluxConfig.Read();
-            }
-            catch (Exception e)
-            {
-                lblResult.Text = "config.ini を読めません: " + e.Message;
-                lblResult.ForeColor = Color.Firebrick;
-                btnSave.Enabled = false;
-                return;
-            }
+            lblResult.Text = ManagerSettings.LoadError == null ? "" : "RefluxAPIManager.json を読めないため初期値です（保存すると書き直します）: " + ManagerSettings.LoadError;
+            lblResult.ForeColor = ManagerSettings.LoadError == null ? SystemColors.ControlText : Color.Firebrick;
+            var s = ManagerSettings.Current;
             chkShot.Checked = ScreenshotSettings.Enabled;
             numShotMax.Value = Math.Max(3, Math.Min(30, ScreenshotSettings.MaxBurstMs / 1000));
             Select(cbShotFormat, ScreenshotSettings.Jpeg);
             Select(cbShotPngLevel, ScreenshotSettings.PngLevel);
             numShotJpegQuality.Value = ScreenshotSettings.JpegQuality;
             foreach (var c in chkShotKinds) { c.Checked = ScreenshotSettings.Keep((string)c.Tag); }
-            chkApi.Checked = loadedConfig.ApiEnabled;
-            Select(cbHost, loadedConfig.Host);
-            numPort.Value = Math.Max(1, Math.Min(65535, loadedConfig.Port));
-            txtKey.Text = loadedConfig.ApiKey;
-            chkLatestJson.Checked = loadedConfig.LatestJson;
-            chkLatestTxt.Checked = loadedConfig.LatestTxt;
-            chkPlayState.Checked = loadedConfig.PlayState;
-            chkMarquee.Checked = loadedConfig.Marquee;
-            chkSongInfo.Checked = loadedConfig.FullSongInfo;
 
-            loadedCore = null;
-            foreach (var cb in new[] { cbPoll, cbPlayPoll, cbResultPoll, cbUnlock, cbTracker, cbPriority, cbSession }) { cb.Enabled = false; }
-            lblCore.Text = "コアから読み込み中...";
+            loadedConfig = null;
+            loadedConfigPath = RefluxFolder.ConfigPath;
             try
             {
-                using var api = new CoreApi(loadedConfig);
+                loadedConfig = RefluxConfig.Read(loadedConfigPath);
+                lblApi.Text = loadedConfig != null ? "ファイル: " + loadedConfigPath :
+                    "Reflux のフォルダに config.ini がありません（RefluxAPIManager.exe は Reflux.exe と同じフォルダに置いてください）";
+            }
+            catch (Exception e)
+            {
+                lblApi.Text = "config.ini を読めません: " + e.Message;
+            }
+            foreach (var c in ApiControls) { c.Enabled = loadedConfig != null; }
+            if (loadedConfig != null)
+            {
+                chkApi.Checked = loadedConfig.ApiEnabled;
+                Select(cbHost, loadedConfig.Host);
+                numPort.Value = Math.Max(1, Math.Min(65535, loadedConfig.Port));
+                txtKey.Text = loadedConfig.ApiKey;
+            }
+
+            loadedOutputs = null;
+            loadedCore = null;
+            foreach (var c in OutputBoxes) { c.Enabled = false; }
+            foreach (var cb in new[] { cbPoll, cbPlayPoll, cbResultPoll, cbUnlock, cbTracker, cbPriority, cbSession }) { cb.Enabled = false; }
+            lblOutputs.Text = lblCore.Text = "Reflux API Server から読み込み中...";
+            using var api = new CoreApi();
+            try
+            {
+                loadedOutputs = await api.OutputsAsync();
+                if (loadedOutputs == null)
+                {
+                    lblOutputs.Text = "この Reflux は API での変更に対応していません（2026-11-22 より前の版）。Reflux を更新してください";
+                }
+                else
+                {
+                    chkLatestJson.Checked = loadedOutputs.LatestJson;
+                    chkLatestTxt.Checked = loadedOutputs.LatestTxt;
+                    chkPlayState.Checked = loadedOutputs.PlayState;
+                    chkMarquee.Checked = loadedOutputs.Marquee;
+                    chkSongInfo.Checked = loadedOutputs.FullSongInfo;
+                    foreach (var c in OutputBoxes) { c.Enabled = true; }
+                    lblOutputs.Text = "Reflux のフォルダの config.ini にも書き込まれます";
+                }
+            }
+            catch (Exception e)
+            {
+                lblOutputs.Text = "Reflux の API に接続できないため変更できません（" + (e.InnerException ?? e).Message + "）";
+            }
+            try
+            {
                 var res = await api.SettingsAsync();
                 loadedCore = res.Values;
                 Select(cbPoll, loadedCore.PollIntervalMs);
@@ -253,25 +317,25 @@ namespace Reflux.ServerMonitor
             try
             {
                 var messages = new System.Collections.Generic.List<string>();
+                var s = ManagerSettings.Current;
 
-                bool shotJpeg = Value(cbShotFormat) is bool j && j;
-                int shotMax = (int)numShotMax.Value * 1000;
-                int shotLevel = Value(cbShotPngLevel) is int lv ? lv : 6;
-                int shotQuality = (int)numShotJpegQuality.Value;
-                if (chkShot.Checked != ScreenshotSettings.Enabled || shotMax != ScreenshotSettings.MaxBurstMs || shotJpeg != ScreenshotSettings.Jpeg ||
-                    shotLevel != ScreenshotSettings.PngLevel || shotQuality != ScreenshotSettings.JpegQuality ||
-                    chkShotKinds.Any(c => c.Checked != ScreenshotSettings.Keep((string)c.Tag)))
+
+                /* Through the API first, while it still answers where it did */
+                if (loadedOutputs != null)
                 {
-                    foreach (var c in chkShotKinds) { ScreenshotSettings.SetKeep((string)c.Tag, c.Checked); }
-                    ScreenshotSettings.Enabled = chkShot.Checked;
-                    ScreenshotSettings.MaxBurstMs = shotMax;
-                    ScreenshotSettings.Jpeg = shotJpeg;
-                    ScreenshotSettings.PngLevel = shotLevel;
-                    ScreenshotSettings.JpegQuality = shotQuality;
-                    messages.Add("スクリーンショットの設定を保存しました");
+                    var outputs = new OutputValues
+                    {
+                        LatestJson = chkLatestJson.Checked, LatestTxt = chkLatestTxt.Checked, PlayState = chkPlayState.Checked,
+                        Marquee = chkMarquee.Checked, FullSongInfo = chkSongInfo.Checked,
+                    };
+                    if (!outputs.SameAs(loadedOutputs))
+                    {
+                        using var api = new CoreApi();
+                        await api.PutOutputsAsync(outputs);
+                        loadedOutputs = outputs;
+                        messages.Add("ファイル出力の設定を反映しました");
+                    }
                 }
-
-                /* Core settings first: the API still answers on the current port */
                 if (loadedCore != null)
                 {
                     var core = new CoreSettingsValues
@@ -288,42 +352,62 @@ namespace Reflux.ServerMonitor
                         core.ResultPollIntervalMs != loadedCore.ResultPollIntervalMs || core.UnlockCheckSeconds != loadedCore.UnlockCheckSeconds ||
                         core.TrackerTsv != loadedCore.TrackerTsv || core.ProcessPriority != loadedCore.ProcessPriority || core.SessionFile != loadedCore.SessionFile)
                     {
-                        using var api = new CoreApi(loadedConfig);
+                        using var api = new CoreApi();
                         await api.PutSettingsAsync(core);
                         loadedCore = core;
-                        messages.Add("コアの動作設定を反映しました");
+                        messages.Add("Reflux API Server の動作設定を反映しました");
                     }
                 }
 
-                var config = new RefluxConfig
+                /* Reflux API Manager's own settings (the screenshots) */
+                bool shotJpeg = Value(cbShotFormat) is bool j && j;
+                int shotMax = (int)numShotMax.Value * 1000;
+                int shotLevel = Value(cbShotPngLevel) is int lv ? lv : 6;
+                int shotQuality = (int)numShotJpegQuality.Value;
+                bool shotChanged = chkShot.Checked != ScreenshotSettings.Enabled || shotMax != ScreenshotSettings.MaxBurstMs || shotJpeg != ScreenshotSettings.Jpeg ||
+                    shotLevel != ScreenshotSettings.PngLevel || shotQuality != ScreenshotSettings.JpegQuality ||
+                    chkShotKinds.Any(c => c.Checked != ScreenshotSettings.Keep((string)c.Tag));
+                if (shotChanged)
                 {
-                    ApiEnabled = chkApi.Checked,
-                    Host = (string)Value(cbHost) ?? "localhost",
-                    Port = (int)numPort.Value,
-                    ApiKey = txtKey.Text.Trim(),
-                    LatestJson = chkLatestJson.Checked,
-                    LatestTxt = chkLatestTxt.Checked,
-                    PlayState = chkPlayState.Checked,
-                    Marquee = chkMarquee.Checked,
-                    FullSongInfo = chkSongInfo.Checked,
-                };
-                if (!config.SameAs(loadedConfig))
+                    foreach (var c in chkShotKinds) { ScreenshotSettings.SetKeep((string)c.Tag, c.Checked); }
+                    ScreenshotSettings.Enabled = chkShot.Checked;
+                    ScreenshotSettings.MaxBurstMs = shotMax;
+                    ScreenshotSettings.Jpeg = shotJpeg;
+                    ScreenshotSettings.PngLevel = shotLevel;
+                    ScreenshotSettings.JpegQuality = shotQuality;
+                    s.Save();
+                    messages.Add("スクリーンショットの設定を保存しました");
+                }
+
+                /* config.ini [Api] last: the service restarts with it */
+                if (loadedConfig != null)
                 {
-                    var error = WriteConfig(config.Apply());
-                    if (error != null) { throw new Exception("config.ini を保存できませんでした: " + error); }
-                    loadedConfig = config;
-                    if (ServiceControl.Status() == null)
+                    var config = new RefluxConfig
                     {
-                        messages.Add("config.ini を保存しました。Reflux を起動し直すと反映されます");
-                    }
-                    else
+                        ApiEnabled = chkApi.Checked,
+                        Host = (string)Value(cbHost) ?? "localhost",
+                        Port = (int)numPort.Value,
+                        ApiKey = txtKey.Text.Trim(),
+                    };
+                    if (!config.SameAs(loadedConfig))
                     {
-                        lblResult.Text = "サービスを再起動しています...";
-                        var restartError = await tray.RestartServiceForSettings();
-                        messages.Add(restartError == null ? "config.ini を保存してサービスを再起動しました" : "config.ini は保存しましたが、サービスを再起動できませんでした: " + restartError);
+                        var error = WriteConfig(loadedConfigPath, config.Apply(loadedConfigPath));
+                        if (error != null) { throw new Exception("config.ini を保存できませんでした: " + error); }
+                        loadedConfig = config;
+                        if (ServiceControl.Status() == null)
+                        {
+                            messages.Add("config.ini を保存しました。Reflux を起動し直すと反映されます");
+                        }
+                        else
+                        {
+                            lblResult.Text = "Reflux API サービスを再起動しています...";
+                            var restartError = await tray.RestartServiceForSettings();
+                            messages.Add(restartError == null ? "config.ini を保存して Reflux API サービスを再起動しました" : "config.ini は保存しましたが、Reflux API サービスを再起動できませんでした: " + restartError);
+                        }
                     }
                 }
-                lblResult.Text = messages.Count == 0 ? "変更はありません" : string.Join("\n", messages) + $"（{DateTime.Now:HH:mm:ss}）";
+                var result = messages.Count == 0 ? "変更はありません" : string.Join("\n", messages) + $"（{DateTime.Now:HH:mm:ss}）";
+                lblResult.Text = result;
                 await tray.Poll();
             }
             catch (Exception e)
@@ -338,18 +422,18 @@ namespace Reflux.ServerMonitor
         }
 
         /// <summary>Write config.ini, as administrator (UAC) when the folder isn't writable for the user</summary>
-        static string WriteConfig(byte[] bytes)
+        static string WriteConfig(string path, byte[] bytes)
         {
             try
             {
-                File.WriteAllBytes(RefluxFolder.ConfigPath, bytes);
+                File.WriteAllBytes(path, bytes);
                 return null;
             }
             catch (UnauthorizedAccessException)
             {
-                var temp = Path.Combine(Path.GetTempPath(), $"reflux-config-{Guid.NewGuid():N}.ini");
+                var temp = Path.Combine(Path.GetTempPath(), $"beatshutter-config-{Guid.NewGuid():N}.ini");
                 File.WriteAllBytes(temp, bytes);
-                try { return Elevated.Run($"--write-config \"{temp}\""); }
+                try { return Elevated.Run($"--write-config \"{temp}\" \"{path}\""); }
                 finally { try { File.Delete(temp); } catch { } }
             }
         }

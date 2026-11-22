@@ -9,37 +9,24 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Forms;
-using Microsoft.Win32;
 
-namespace Reflux.ServerMonitor
+namespace RefluxAPIManager
 {
-    /// <summary>Screenshot settings of this user (HKCU\Software\RefluxAPIServerMonitor)</summary>
+    /// <summary>Screenshot settings (RefluxAPIManager.json, see ManagerSettings). The setters change the values in memory; ManagerSettings.Save writes them</summary>
     static class ScreenshotSettings
     {
-        const string Key = @"Software\RefluxAPIServerMonitor";
+        static ManagerSettings S => ManagerSettings.Current;
 
-        static object Get(string name, object fallback)
-        {
-            using var k = Registry.CurrentUser.OpenSubKey(Key);
-            return k?.GetValue(name) ?? fallback;
-        }
-
-        static void Set(string name, object value)
-        {
-            using var k = Registry.CurrentUser.CreateSubKey(Key);
-            k.SetValue(name, value);
-        }
-
-        public static bool Enabled { get => (int)Get("ScreenshotEnabled", 1) != 0; set => Set("ScreenshotEnabled", value ? 1 : 0); }
+        public static bool Enabled { get => S.ScreenshotEnabled; set => S.ScreenshotEnabled = value; }
         /// <summary>Longest burst on the result screen before a frame is picked anyway, milliseconds</summary>
-        public static int MaxBurstMs { get => (int)Get("ScreenshotMaxBurstMs", 15000); set => Set("ScreenshotMaxBurstMs", value); }
-        public static bool Jpeg { get => (int)Get("ScreenshotJpeg", 0) != 0; set => Set("ScreenshotJpeg", value ? 1 : 0); }
+        public static int MaxBurstMs { get => S.ScreenshotMaxBurstMs; set => S.ScreenshotMaxBurstMs = value; }
+        public static bool Jpeg { get => S.ScreenshotJpeg; set => S.ScreenshotJpeg = value; }
         /// <summary>zlib level of the PNG: 6 (standard, 1.8 MB in 1 s) or 9 (3 % smaller, 6 s on the dev PC)</summary>
-        public static int PngLevel { get => (int)Get("ScreenshotPngLevel", 6) >= 9 ? 9 : 6; set => Set("ScreenshotPngLevel", value); }
+        public static int PngLevel { get => S.ScreenshotPngLevel >= 9 ? 9 : 6; set => S.ScreenshotPngLevel = value; }
         /// <summary>JPEG quality, 50-100</summary>
-        public static int JpegQuality { get => Math.Max(50, Math.Min(100, (int)Get("ScreenshotJpegQuality", 92))); set => Set("ScreenshotJpegQuality", value); }
-        /// <summary>Tuning aid (registry only): keep every frame of the burst in screenshots\burst\ with the differences in capture.log</summary>
-        public static bool KeepBurst => (int)Get("ScreenshotKeepBurst", 0) != 0;
+        public static int JpegQuality { get => Math.Max(50, Math.Min(100, S.ScreenshotJpegQuality)); set => S.ScreenshotJpegQuality = value; }
+        /// <summary>Tuning aid (file only): keep every frame of the burst in screenshots\burst\ with the differences in capture.log</summary>
+        public static bool KeepBurst => S.ScreenshotKeepBurst;
 
         /// <summary>
         /// Kinds of result (the core's resultKind, plus "unrecorded" when no play record came) with their label and whether the
@@ -61,10 +48,10 @@ namespace Reflux.ServerMonitor
         public static bool Keep(string kind)
         {
             var k = Kinds.FirstOrDefault(x => x.kind == kind);
-            return k.kind == null || (int)Get("ScreenshotKeep_" + kind, k.keep ? 1 : 0) != 0;
+            return k.kind == null || (S.ScreenshotKeep.TryGetValue(kind, out var keep) ? keep : k.keep);
         }
 
-        public static void SetKeep(string kind, bool keep) => Set("ScreenshotKeep_" + kind, keep ? 1 : 0);
+        public static void SetKeep(string kind, bool keep) => S.ScreenshotKeep[kind] = keep;
     }
 
     /// <summary>
@@ -86,6 +73,7 @@ namespace Reflux.ServerMonitor
     /// </summary>
     static class ResultScreenshot
     {
+        /// <summary>screenshots\ in the Reflux folder (the core serves them from there)</summary>
         public static string Folder => Path.Combine(RefluxFolder.Dir, "screenshots");
         public static string LastSaved { get; private set; }
         static string lastPlayTimestamp;
@@ -122,21 +110,20 @@ namespace Reflux.ServerMonitor
             var now = snap.Status?.GameState;
             gameState = now;
             if (now != previousGameState) { Log($"game state {previousGameState ?? "-"} -> {now ?? "-"}" + (snap.ApiError != null ? " (" + snap.ApiError + ")" : "")); }
-            if (!ScreenshotSettings.Enabled || busy || snap.Status == null || snap.Config == null) { return; }
+            if (!ScreenshotSettings.Enabled || busy || snap.Status == null) { return; }
             if (now != "resultScreen" || previousGameState == "resultScreen" || previousGameState == null) { return; }
             busy = true;
             Log("result screen: capturing");
-            var config = snap.Config;
             var since = DateTime.UtcNow.AddSeconds(-20);
             Task.Run(async () =>
             {
-                try { await Capture(config, since).ConfigureAwait(false); }
+                try { await Capture(since).ConfigureAwait(false); }
                 catch (Exception e) { Log("error: " + e.Message); }
                 finally { busy = false; }
             });
         }
 
-        static async Task Capture(RefluxConfig config, DateTime since)
+        static async Task Capture(DateTime since)
         {
             using var bmp = CaptureResult(out var how);
             if (bmp == null) { Log("nothing captured: " + how); return; }
@@ -144,7 +131,7 @@ namespace Reflux.ServerMonitor
 
             /* Reflux records the play a moment after the result screen appears: wait for it (up to 15 seconds) */
             string key = null, kind = null;
-            using (var api = new CoreApi(config))
+            using (var api = new CoreApi())
             {
                 for (int i = 0; i < 15 && key == null; i++)
                 {
@@ -433,8 +420,9 @@ namespace Reflux.ServerMonitor
             {
                 lock (logSync)
                 {
-                    Directory.CreateDirectory(Folder);
-                    File.AppendAllText(Path.Combine(Folder, "capture.log"), $"{DateTime.Now:yyyy/MM/dd HH:mm:ss.fff} {line}\r\n");
+                    var folder = Folder;
+                    Directory.CreateDirectory(folder);
+                    File.AppendAllText(Path.Combine(folder, "capture.log"), $"{DateTime.Now:yyyy/MM/dd HH:mm:ss.fff} {line}\r\n");
                 }
             }
             catch { }

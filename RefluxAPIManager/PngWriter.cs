@@ -6,7 +6,7 @@ using System.Text;
 using ICSharpCode.SharpZipLib.Zip.Compression;
 using ICSharpCode.SharpZipLib.Zip.Compression.Streams;
 
-namespace Reflux.ServerMonitor
+namespace RefluxAPIManager
 {
     /// <summary>
     /// PNG encoder for the screenshots. GDI+ (Bitmap.Save) doesn't filter the rows and can't be given a compression level: a
