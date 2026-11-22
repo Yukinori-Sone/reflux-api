@@ -101,10 +101,11 @@ namespace Reflux.Api
                         Write(ctx, 200, EndpointList("\"GET /api/status\",\"GET /api/songs\",\"GET /api/charts\",\"GET /api/scores\",\"GET /api/latest\",\"GET /api/session\",\"GET /api/clearrates\",\"GET /api/rivals\",\"GET /api/rivals/scores\",\"GET /api/plays?since=&limit=&infinitasId=\",\"GET /api/masters?tables=\",\"GET /api/screenshots\",\"GET /api/screenshot?key=\",\"DELETE /api/screenshot?key=\",\"POST /api/attach/retry\"," +
                             "\"GET /api/offsets\",\"PUT /api/offsets\",\"GET /api/memory/info\",\"GET /api/memory?address=&length=&format=hex|bin&encoding=sjis\"," +
                             "\"GET /api/memory/search?start=&length=&hex=|text=&encoding=|int32=|int64=&max=\"," +
-                            "\"GET /api/settings\",\"PUT /api/settings\",\"GET /api/layout\",\"PUT /api/layout\",\"GET|POST /api/layout/preview?start=&count=\"]"));
+                            "\"GET /api/settings\",\"PUT /api/settings\",\"GET /api/outputs\",\"PUT /api/outputs\",\"GET /api/layout\",\"PUT /api/layout\",\"GET|POST /api/layout/preview?start=&count=\"]"));
                         return;
                     case "/api/layout": Write(ctx, 200, Layout.GetJson()); return;
                     case "/api/settings": Write(ctx, 200, CoreSettings.GetJson()); return;
+                    case "/api/outputs": Write(ctx, 200, OutputSettings.GetJson()); return;
                     case "/api/plays": Plays(ctx); return;
                     case "/api/masters":
                         {
@@ -147,6 +148,12 @@ namespace Reflux.Api
             else if ((method == "PUT" || method == "POST") && path == "/api/settings")
             {
                 var (code, json) = CoreSettings.Put(ReadBody(req));
+                Write(ctx, code, json);
+                return;
+            }
+            else if ((method == "PUT" || method == "POST") && path == "/api/outputs")
+            {
+                var (code, json) = OutputSettings.Put(ReadBody(req));
                 Write(ctx, code, json);
                 return;
             }

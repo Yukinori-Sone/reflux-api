@@ -15,11 +15,11 @@ namespace Reflux
         public static bool Save_remote { get; private set; }
         public static bool Save_local { get; private set; }
         public static bool Save_json { get; private set; }
-        public static bool Save_latestJson { get; private set; }
-        public static bool Save_latestTxt { get; private set; }
-        public static bool Stream_Playstate { get; private set; }
-        public static bool Stream_Marquee { get; private set; }
-        public static bool Stream_FullSongInfo { get; private set; }
+        public static bool Save_latestJson { get; internal set; }
+        public static bool Save_latestTxt { get; internal set; }
+        public static bool Stream_Playstate { get; internal set; }
+        public static bool Stream_Marquee { get; internal set; }
+        public static bool Stream_FullSongInfo { get; internal set; }
         public static string MarqueeIdleText { get; private set; }
         public static bool UseLocaltime { get; private set; }
         public static bool ApiServer_Enabled { get; private set; }

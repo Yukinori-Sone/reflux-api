@@ -117,7 +117,7 @@ New-NetFirewallRule -DisplayName "Reflux API" -Direction Inbound -Protocol TCP -
 | `[Livestream] enablefullsonginfo` | true | false | `title.txt`・`artist.txt`・`englishtitle.txt`・`genre.txt`・`level.txt`・`folder.txt` |
 | `[Api] enabled` | （項目なし） | true | ―（`host = localhost` なので同じ PC からだけ。LAN の別 PC からは `host = +` と urlacl が必要） |
 
-残る出力: `tracker.db`（自己ベストの保存。PERFECT などゲームのメモリに無い情報）、`bestdetail.json`（判定の内訳）、`plays.jsonl`（プレー履歴）、`sessions/Session_*.tsv`（月ごと）、`log.txt`（エラー時）。配信で使う場合は `[Livestream]` などを true に戻す。
+残る出力: `tracker.db`（自己ベストの保存。PERFECT などゲームのメモリに無い情報）、`bestdetail.json`（判定の内訳）、`plays.jsonl`（プレー履歴）、`sessions/Session_*.tsv`（月ごと）、`log.txt`（エラー時）。配信で使う場合は `[Livestream]` などを true に戻す。上の5項目は API（`GET|PUT /api/outputs`、2026-11-22）でも変えられ、その場で効く（`config.ini` にも書く。コアの起動し直しは要らない）。
 
 ### 【追加】Windows サービス
 

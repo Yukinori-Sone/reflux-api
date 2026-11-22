@@ -48,6 +48,8 @@
 | `GET /api/settings` | コアの動作設定（下記）の今の値・初期値・選択肢 |
 | `GET /api/masters?tables=...` | マスター・定数の表（曲・譜面・シリーズ・楽曲パックも選べる）。下記 |
 | `PUT /api/settings` | 動作設定を変える。本文に書いた項目だけ変わり、その場で反映して `coresettings.json` に保存する |
+| `GET /api/outputs` | 最新プレー・配信用ファイルを書き出すかどうか（`config.ini` の5項目）。下記 |
+| `PUT /api/outputs` | 上の5項目を変える。本文に書いた項目だけ変わり、その場で反映して `config.ini` に書く |
 | `POST /api/attach/retry` | 再アタッチを要求する（`202`）。オフセット不一致の待機中や、曲リストの読み込みが進まないときにも効く |
 
 ### `GET /api/status`
@@ -136,6 +138,24 @@
 
 ```sh
 curl -X PUT "$A/settings" -d '{"unlockCheckSeconds":-1,"trackerTsv":"onChange","processPriority":"belowNormal"}'
+```
+
+### 最新プレー・配信用ファイルの出力（`/api/outputs`、2026-11-22）
+
+`config.ini` の5項目を、コアのフォルダに触れずに読み書きする（Beat Shutter の設定画面が使う）。メインループは毎回この値を見るので、変えるとその場で効き、`config.ini` にも書く（コメント・並び・ほかの項目・改行コード・BOM はそのまま）。`[Api]` の項目（enabled・host・port・apikey）は API では変えない（変えると接続が切れるため。`config.ini` を直接書き、コアを起動し直す）。
+
+| キー | `config.ini` | 書き出すファイル |
+|---|---|---|
+| `latestJson` | `[Record] savelatestjson` | `latest.json` |
+| `latestTxt` | `[Record] savelatesttxt` | `latest.txt`・`latest-*.txt` |
+| `playState` | `[Livestream] showplaystate` | `playstate.txt` |
+| `marquee` | `[Livestream] enablemarquee` | `marquee.txt` |
+| `fullSongInfo` | `[Livestream] enablefullsonginfo` | `title.txt`・`artist.txt` など |
+
+値は true / false だけ（それ以外や知らないキーは `400 bad_setting`）。応答は5項目の今の値。
+
+```sh
+curl -X PUT "$A/outputs" -d '{"marquee":true,"playState":true}'
 ```
 
 ### `GET /api/masters`（例外: リクエストのたびにゲームの exe の表を読む）
