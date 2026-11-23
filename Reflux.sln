@@ -10,7 +10,7 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution 
 		README.md = README.md
 	EndProjectSection
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "RefluxScoreManager", "RefluxScoreManager\RefluxScoreManager.csproj", "{A45446D0-2BA2-4952-8E44-F09EE9F24600}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "BeatLedger", "BeatLedger\BeatLedger.csproj", "{A45446D0-2BA2-4952-8E44-F09EE9F24600}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "RefluxAPIManager", "RefluxAPIManager\RefluxAPIManager.csproj", "{B999E088-27E9-4FB7-BF5F-407DF8189FC3}"
 EndProject

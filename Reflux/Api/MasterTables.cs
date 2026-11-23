@@ -7,7 +7,7 @@ namespace Reflux.Api
 {
     /// <summary>
     /// Master tables built from the core's own snapshot (no game memory read): song, chart, series and pack, in the same
-    /// shape as the exe tables of GET /api/masters. They match the Score Manager's master tab, which builds them from its
+    /// shape as the exe tables of GET /api/masters. They match Beat Ledger's master tab, which builds them from its
     /// database (Names.DefaultSeries / Names.Packs there hold the same names as here; the client's series names can be edited
     /// in its database, these are the defaults). Built once per songs / clear rates revision and kept as JSON.
     /// </summary>
@@ -162,7 +162,7 @@ namespace Reflux.Api
             var series = new Masters.Master
             {
                 Key = "series", Name = "シリーズ（登場作品）", Source = "reflux", Warning = warning,
-                Note = "曲リストのバージョンフォルダ番号（0 = 1st style、1 = substream、2 以降 = バージョン、80 = INFINITAS）。名前は Reflux の定義（Score Manager では DB で変えられる）",
+                Note = "曲リストのバージョンフォルダ番号（0 = 1st style、1 = substream、2 以降 = バージョン、80 = INFINITAS）。名前は Reflux の定義（Beat Ledger では DB で変えられる）",
                 Columns = new List<Masters.Column> { C("id", "ID", true), C("name", "シリーズ名"), C("songs", "曲数", true) },
             };
             var songCounts = songs.GroupBy(s => s.Folder).ToDictionary(g => g.Key, g => g.Count());

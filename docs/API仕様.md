@@ -1,6 +1,6 @@
 # Reflux コア API 仕様
 
-独自に追加した Reflux コアの HTTP API（`Reflux/Api/`）の一覧。クライアント（Reflux INFINITAS Score Manager、`RefluxScoreManager/`）や curl から使う。
+独自に追加した Reflux コアの HTTP API（`Reflux/Api/`）の一覧。クライアント（Beat Ledger、`BeatLedger/`）や curl から使う。
 エンドポイントを追加・変更したら、このファイルも更新すること。
 
 ## 接続
@@ -124,7 +124,7 @@
 
 ### コアの動作設定（`/api/settings`、`coresettings.json`）
 
-初期値は API 運用向け（`tracker.tsv` を書かない・セッション TSV は月ごと。ほかは本家と同じ）。クライアントの「コア設定」タブから変えられる。ファイルが無ければ初期値。
+初期値は API 運用向け（`tracker.tsv` を書かない・セッション TSV は月ごと。ほかは本家と同じ）。クライアントの「Reflux設定」タブから変えられる。ファイルが無ければ初期値。
 
 | キー | 値 | 初期値 | 内容 |
 |---|---|---|---|
@@ -140,7 +140,7 @@
 curl -X PUT "$A/settings" -d '{"unlockCheckSeconds":-1,"trackerTsv":"onChange","processPriority":"belowNormal"}'
 ```
 
-### 最新プレー・配信用ファイルの出力（`/api/outputs`、2026-11-22）
+### 最新プレー・配信用ファイルの出力（`/api/outputs`、2026-11-23）
 
 `config.ini` の5項目を、コアのフォルダに触れずに読み書きする（Reflux API Manager の設定画面が使う）。メインループは毎回この値を見るので、変えるとその場で効き、`config.ini` にも書く（コメント・並び・ほかの項目・改行コード・BOM はそのまま）。`[Api]` の項目（enabled・host・port・apikey）は API では変えない（変えると接続が切れるため。`config.ini` を直接書き、コアを起動し直す）。
 

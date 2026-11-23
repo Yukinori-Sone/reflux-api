@@ -34,12 +34,12 @@ Service-Install.bat の最後に自動で起動し、次からはログオン時
 設定は RefluxAPIManager.json に保存します（このフォルダに書き込めないときは %LOCALAPPDATA%\RefluxAPIManager）。
 
 ■ 初期設定について
-このカスタム版は、記録を Reflux INFINITAS Score Manager（API）で見ることを前提にしているため、
+このカスタム版は、記録を Beat Ledger などのクライアント（API）で見ることを前提にしているため、
 配信用のファイル（latest.txt、playstate.txt、marquee.txt、title.txt など）は出力しない設定にしています。
 配信で使うときは config.ini の [Record] savelatestjson / savelatesttxt と [Livestream] の各項目を true にしてください
 （Reflux API Manager の設定画面からも変えられます。その場で反映します）。
 
-■ Reflux INFINITAS Score Manager（記録を見るツール）から見るとき
+■ Beat Ledger（記録を見るツール）などのクライアントから見るとき
 config.ini の [Api] は最初から enabled = true です（同じ PC からだけ見られる host = localhost）。
 別の PC から見るときは、次のようにします。
   host = localhost   … 同じPCのクライアントからだけ見るとき
