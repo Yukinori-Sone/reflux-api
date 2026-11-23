@@ -341,7 +341,7 @@ healthchecksdb
 .vscode/launch.json
 .vscode/tasks.json
 Reflux/offset finding.txt
-/Reflux/reflux build/netcoreapp3.1
+/Reflux/reflux build/
 /publish.bat
 
 # Claude Code local files

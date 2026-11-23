@@ -1,6 +1,6 @@
 # Reflux コア API 仕様
 
-独自に追加した Reflux コアの HTTP API（`Reflux/Api/`）の一覧。クライアント（Beat Ledger、`BeatLedger/`）や curl から使う。
+独自に追加した Reflux コアの HTTP API（`Reflux/Api/`）の一覧。クライアントや curl から使う。
 エンドポイントを追加・変更したら、このファイルも更新すること。
 
 ## 接続
@@ -113,7 +113,7 @@
 - `GET /api/screenshots`: `[{key, file, size, savedAt}]`
 - `GET /api/screenshot?key=...`: 画像そのもの。`key` の形が違えば `400`、無ければ `404`
 - `DELETE /api/screenshot?key=...`（2026-11-15 から）: その `key` の画像を拡張子に関係なくすべて消す。`200 {deleted: [ファイル名]}`、`key` の形が違えば `400`、無ければ `404`。クライアントの「リザルト画像を削除」が使う
-- どのリザルトを残すかはモニターの設定（「保存するリザルト」、`resultKind` ごと＋記録が取れなかったもの。Reflux API Manager の `RefluxAPIManager.json` の `ScreenshotKeep`）。初期値は first・pb・failed・dead がオン、nopb・quit・idle・unrecorded がオフ（ユーザー指定）。オフの区分は撮ったあと記録を見て捨てる（`capture.log` に `not saved`）
+- どのリザルトを残すかはモニターの設定（「保存するリザルト」、`resultKind` ごと＋記録が取れなかったもの。Reflux API Manager の `RefluxAPIManager.json` の `ScreenshotKeep`）。初期値は first・pb・failed・dead がオン、nopb・quit・idle・unrecorded がオフ。オフの区分は撮ったあと記録を見て捨てる（`capture.log` に `not saved`）
 - 拡張子は `.png` / `.jpg` / `.jpeg` で、同じ `key` が複数あればこの順に先のものを使う（クライアントの手元の `screenshots/` も同じ順）。`Content-Type` は拡張子ではなく中身（先頭のシグネチャ）で決めるので、外部で PNG ⇔ JPEG に変換して拡張子が合わなくても返せる。チェックサムなどは持たず、ファイル名だけで結びつける
 
 ### `GET /api/rivals` / `GET /api/rivals/scores`

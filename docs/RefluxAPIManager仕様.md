@@ -3,8 +3,7 @@
 Reflux API Server（Reflux カスタム版のコア）をサービスで動かすときの、タスクトレイの管理ツール。`RefluxAPIManager/`（WinForms、**net48**。.NET Framework 4.8 は Windows 10/11 に入っているので追加のインストールは不要）。
 exe 1つ（`RefluxAPIManager.exe`。SharpDX・SharpZipLib を exe に埋め込み、`Program.LoadEmbeddedAssembly`）で、**Reflux.exe と同じフォルダに置く**（Reflux の配布物に入っている）。
 
-経緯: 旧 `RefluxAPIServerMonitor.exe`（2026-10-15〜）→ 2026-11-22 にいったん別製品の Beat Shutter（別フォルダ・別リポジトリ）に分けかけたが、
-撮影も Reflux API Server の機能（保存先・配信・残す区分ともコア側）と見て、管理ツールとして reflux-api に戻した（ユーザーと相談して決定）。
+旧名は `RefluxAPIServerMonitor.exe`（設定は初回の起動で引き継ぐ）。
 
 ## 役割
 
@@ -27,7 +26,7 @@ exe の隣（書き込めなければ `%LOCALAPPDATA%\RefluxAPIManager`。すで
 | 項目 | 内容 |
 |---|---|
 | `ServiceName` | 初期値 `RefluxAPIServer`（画面には出さない） |
-| `Port` / `ApiKey` | API への接続の控え。接続のたびに `config.ini` から読み、変わっていればここも書き直す。`config.ini` を読めないときだけこの値で接続する（画面に別の接続設定は持たない。ユーザー指定） |
+| `Port` / `ApiKey` | API への接続の控え。接続のたびに `config.ini` から読み、変わっていればここも書き直す。`config.ini` を読めないときだけこの値で接続する（画面に別の接続設定は持たない） |
 | `AutoStartChosen` | ログオン時の起動（`HKCU\...\Run` の `RefluxAPIManager`）をユーザーが選んだか。選んでいなければ起動のたびにオン |
 | `Screenshot*` | スクリーンショットの設定（下記） |
 
@@ -35,11 +34,11 @@ exe の隣（書き込めなければ `%LOCALAPPDATA%\RefluxAPIManager`。すで
 
 ## 画面
 
-- 画面の文言では「コア」（内部の呼び名）ではなく「Reflux API Server」、「本家」ではなく「Reflux本家」、Windows サービスの操作は「Reflux API サービスを開始／停止／再起動」と書く（ユーザー指定）
+- 画面の文言では「コア」（内部の呼び名）ではなく「Reflux API Server」、「本家」ではなく「Reflux本家」、Windows サービスの操作は「Reflux API サービスを開始／停止／再起動」と書く
 - アイコンの色で状態（緑 = 監視中、黄 = INFINITAS 待ちなど、赤 = エラー・サービス停止・API 応答なし、灰 = サービス未登録で Reflux も止まっている）
 - 左クリックで状態ウィンドウ（サービス・INFINITAS・ゲームの状態、INFINITAS ID、バージョン、`config.ini` の API の設定、直近のプレー、スクリーンショット、`log.txt` の最後）
 - 右クリックのメニュー: 状態、設定、Reflux API サービスの開始・停止・再起動、Reflux・スクリーンショットのフォルダ・`log.txt` を開く、ログオン時に起動、終了
-- 設定ウィンドウ「Reflux API Manager の設定」は3つのタブ（普通の画面に収まるように。ユーザー指定）: 「API」= `config.ini` の `[Api]`（APIキーの生成・コピー。保存するとサービスを再起動）／「スクリーンショット」／「動作設定」= 配信用・最新プレーのファイル出力と Reflux API Server の動作設定（どちらも API）。「保存して反映」は全部のタブの変更をまとめて反映する。タブの大きさは一番大きいページに合わせる（表示の直前に測る）
+- 設定ウィンドウ「Reflux API Manager の設定」は3つのタブ（普通の画面に収まるように）: 「API」= `config.ini` の `[Api]`（APIキーの生成・コピー。保存するとサービスを再起動）／「スクリーンショット」／「動作設定」= 配信用・最新プレーのファイル出力と Reflux API Server の動作設定（どちらも API）。「保存して反映」は全部のタブの変更をまとめて反映する。タブの大きさは一番大きいページに合わせる（表示の直前に測る）
 - `--status` / `--settings` で起動時にそのウィンドウを開く。同じユーザーのセッションでは1つだけ（`Local\RefluxAPIManager`）
 - .NET Framework の部品は UIA で種類が Pane に見えるので、UI の自動確認は BM_CLICK を送る
 

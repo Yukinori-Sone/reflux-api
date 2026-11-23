@@ -30,7 +30,7 @@ namespace RefluxAPIManager
 
         /// <summary>
         /// Kinds of result (the core's resultKind, plus "unrecorded" when no play record came) with their label and whether the
-        /// screenshot is kept by default (user's choice)
+        /// screenshot is kept by default
         /// </summary>
         public static readonly (string kind, string label, bool keep)[] Kinds =
         {
@@ -56,7 +56,7 @@ namespace RefluxAPIManager
 
     /// <summary>
     /// Takes the screenshot of the result screen and saves it as screenshots\&lt;play time UTC&gt;_&lt;song id&gt;_&lt;difficulty&gt;.png,
-    /// the key the core and the Score Manager use to find the screenshot of a play. The core can't take it itself when it runs as a
+    /// the key the core and its clients use to find the screenshot of a play. The core can't take it itself when it runs as a
     /// service (no desktop in session 0).
     ///
     /// What the game shows after a play (seen on 2026101400 in fullscreen): the core already reports the result screen while the

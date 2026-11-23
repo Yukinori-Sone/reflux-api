@@ -28,7 +28,7 @@ namespace RefluxAPIManager
         readonly CheckBox chkShowKey = new CheckBox { Text = "表示", AutoSize = true };
         readonly Button btnGenerate = new Button { Text = "生成", AutoSize = true };
         readonly Button btnCopy = new Button { Text = "コピー", AutoSize = true };
-        readonly CheckBox chkApi = new CheckBox { Text = "API を有効にする（Beat Ledger などのクライアントから見るのに必要）", AutoSize = true };
+        readonly CheckBox chkApi = new CheckBox { Text = "API を有効にする（クライアントから見るのに必要）", AutoSize = true };
         readonly Label lblApi = new Label { AutoSize = true, ForeColor = SystemColors.GrayText, MaximumSize = new Size(520, 0) };
         readonly CheckBox chkLatestJson = new CheckBox { Text = "latest.json", AutoSize = true };
         readonly CheckBox chkLatestTxt = new CheckBox { Text = "latest.txt・latest-*.txt", AutoSize = true };
@@ -101,7 +101,7 @@ namespace RefluxAPIManager
                 {
                     AutoSize = true, ForeColor = SystemColors.GrayText, MaximumSize = new Size(520, 0),
                     Text = "オフにすると、このツールの状態表示・スクリーンショット・「動作設定」タブも使えなくなります（どれも API を通して Reflux API Server とやりとりするため）。" +
-                           "ポートや APIキーを変えたら、Beat Ledger などのクライアントの接続設定も合わせてください。LAN に公開するポートを変えたときは、ファイアウォールでそのポートの受信を許可してください（サービスで動かしている場合、netsh の URL 予約は不要です）。",
+                           "ポートや APIキーを変えたら、クライアントの接続設定も合わせてください。LAN に公開するポートを変えたときは、ファイアウォールでそのポートの受信を許可してください（サービスで動かしている場合、netsh の URL 予約は不要です）。",
                 };
                 g.Controls.Add(note); g.SetColumnSpan(note, 2);
                 g.Controls.Add(lblApi); g.SetColumnSpan(lblApi, 2);
@@ -128,7 +128,7 @@ namespace RefluxAPIManager
                 g.Controls.Add(kindNote); g.SetColumnSpan(kindNote, 2);
                 var shotNote = new Label { AutoSize = true, ForeColor = SystemColors.GrayText, MaximumSize = new Size(520, 0),
                     Text = "リザルト画面が出たら撮り続け、左の成績パネルの演出が止まった1枚を残します（止まらないまま画面を抜けたときは、抜ける直前の1枚）。" +
-                           "Reflux のフォルダの screenshots に、プレーの記録と同じ日時・曲・譜面の名前で保存します。Beat Ledger などのクライアントから見られます。" +
+                           "Reflux のフォルダの screenshots に、プレーの記録と同じ日時・曲・譜面の名前で保存します。クライアントから見られます。" +
                            "\n設定ファイル: " + ManagerSettings.FilePath };
                 g.Controls.Add(shotNote); g.SetColumnSpan(shotNote, 2);
             }));
@@ -178,7 +178,7 @@ namespace RefluxAPIManager
         void GenerateKey()
         {
             if (txtKey.Text.Trim().Length > 0 &&
-                MessageBox.Show(this, "今の APIキーを新しいキーに置き換えます。\n保存すると、今のキーを入れているクライアント（Beat Ledger など）からは接続できなくなります。よろしいですか？",
+                MessageBox.Show(this, "今の APIキーを新しいキーに置き換えます。\n保存すると、今のキーを入れているクライアントからは接続できなくなります。よろしいですか？",
                     Text, MessageBoxButtons.OKCancel, MessageBoxIcon.Question, MessageBoxDefaultButton.Button2) != DialogResult.OK)
             {
                 return;
@@ -191,7 +191,7 @@ namespace RefluxAPIManager
             MessageBox.Show(this,
                 "新しい APIキーを作り、クリップボードにコピーしました。\n\n" +
                 "1. 「保存して反映」で Reflux に反映してください（Reflux API サービスが再起動します）。\n" +
-                "2. Beat Ledger などのクライアントの「APIキー」欄にも同じキーを貼り付けてください。",
+                "2. クライアントの「APIキー」欄にも同じキーを貼り付けてください。",
                 Text, MessageBoxButtons.OK, MessageBoxIcon.Information);
         }
 

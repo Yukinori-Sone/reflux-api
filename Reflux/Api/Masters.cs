@@ -7,8 +7,8 @@ using System.Text;
 namespace Reflux.Api
 {
     /// <summary>
-    /// Constant tables in the bm2dx image (positions relative to the module base, defaults for 2026111100, see
-    /// docs/INFINITAS動作.md "定数"). Most tables only hold image names: display names come from the built-in maps in
+    /// Constant tables in the bm2dx image (positions relative to the module base, defaults for 2026111100, also
+    /// in layout.json "masters"). Most tables only hold image names: display names come from the built-in maps in
     /// Masters, matched by image name, so a table that moved or changed shows up as unknown images.
     /// </summary>
     public class MastersLayout

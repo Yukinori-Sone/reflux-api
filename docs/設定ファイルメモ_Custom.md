@@ -21,7 +21,6 @@
 | 【変更】初期値 | 同梱の `config.ini` | `[Api] enabled = true`、`savelatestjson`・`savelatesttxt`・`[Livestream]` の3項目を false（本家は true） |
 | 【追加】動作 | Windows サービス | `Reflux.exe --service` でサービスとして動く。登録・解除は `Service-Install.bat` / `Service-UnInstall.bat`。同じフォルダの Reflux は1つしか動かない |
 | 【変更】動作 | `tracker.db` / `log.txt` | INF 再起動（再アタッチ）時の読み込みを修正 |
-| 【追加】別アプリ | Beat Ledger（`BeatLedger.exe`）の `client.json` / `beat-ledger.db` | 別PC側のクライアント（コアとは別の exe） |
 | 【変更】動作 | セッション TSV/JSON | INF 再起動で記録が消える本家の不具合（Original の ※1）を修正 |
 | 【変更】動作 | `offsets.txt` / `archive/` | API からオフセットを書き換えられる。`[Api]` 有効時はバージョン不一致でも対話式探索にすぐ入らず待機する |
 | 【追加】ファイル | `coresettings.json` | コアの動作設定（監視間隔・解禁データの確認頻度・`tracker.tsv` の書き出し・優先度・セッション TSV の単位）。無ければ初期値（`tracker.tsv` を書かない・セッション TSV は月ごと。ほかは本家と同じ）。API／クライアントの「Reflux設定」タブで書き換える |
@@ -134,25 +133,3 @@ New-NetFirewallRule -DisplayName "Reflux API" -Direction Inbound -Protocol TCP -
 ### 変更なし（念のため）
 
 - `tracker.tsv` の2秒ごとの書き直しなど、API 運用時は不要になるファイル出力の削減は**未着手**（実機確認後の候補）
-
-## 【追加】Beat Ledger（別PC側のクライアント）
-
-コアとは別の exe（Beat Ledger、`BeatLedger.exe`。ソースは `BeatLedger/`）。ファイルは `%LOCALAPPDATA%\BeatLedger` に作る（exe と同じフォルダに `client.json` か `beat-ledger.db` があれば、そちらを使う）。初回の起動で、旧 Score Manager のデータを `C:\RefluxScoreManager` などからコピーして引き継ぐ（2026-11-23）。使っている場所は起動直後に画面の一番下に出る。
-
-### client.json の項目
-
-| キー | 初期値 | 意味 |
-|---|---|---|
-| `Host` | `localhost` | コア（ゲームPC）のホスト名／IP |
-| `Port` | `8790` | コアの `[Api] port` と合わせる |
-| `ApiKey` | 空 | コアの `[Api] apikey` と合わせる |
-| `PollIntervalMs` | `2000` | 状態を問い合わせる間隔（ミリ秒、最小 500）。画面には無いので、変える場合はファイルを直接編集 |
-
-### 生成・更新ファイル
-
-| ファイル | 内容 | 作成 | 読込 | 更新 | 削除 | 関連設定 |
-|---|---|---|---|---|---|---|
-| `client.json` | 接続設定 | 初回の「接続」時 | 起動時 | 「接続」ボタンを押すたび | ― | ― |
-| `beat-ledger.db` | SQLite。曲・譜面・スコア・シリーズ名・フォルダ定義・クリアレート・ライバル・プレー履歴（`play` 表、INFINITAS ID 付き）・最終取得日時（`sync_info` 表）。プレー履歴はコアから差分だけ取ってためるので、**消すとコアの `plays.jsonl` から取り直しになる**。シリーズ名やフォルダの抽出条件はこの DB を直接編集して変えられる | 起動時（無ければ） | 起動時・画面更新時 | コアの revision が変わったとき（曲・譜面 / スコア） | ― | `PollIntervalMs`（確認間隔） |
-| `ドキュメント\BeatLedger\export\` | Excel の書き出し先（「全タブをExcelに書き出し...」は日時のフォルダを作ってその中に5ブック。タブごとの書き出しは保存先を選べる） | 書き出し時 | ― | ― | ― | ― |
-| `beat-ledger.db-wal` / `-shm` | SQLite の作業ファイル（WAL モード） | DB と同時 | ― | DB 更新時 | 正常終了時に SQLite が整理 | ― |
