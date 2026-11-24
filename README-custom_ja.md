@@ -29,13 +29,13 @@ beatmania IIDX は株式会社コナミデジタルエンタテインメント�
 
 ## 使い方
 
-配布物（`build-dist.bat` で作る `dist\Reflux`）の「はじめにお読みください.txt」（[distribution/Reflux/](distribution/Reflux/)）を見てください。
+配布物（`build-dist.bat` で作る `dist\RefluxAPIServer`）の「はじめにお読みください.txt」（[distribution/Reflux/](distribution/Reflux/)）を見てください。
 設定とファイルの Reflux本家との違いは [docs/設定ファイルメモ_Custom.md](docs/設定ファイルメモ_Custom.md)、管理ツールは [docs/RefluxAPIManager仕様.md](docs/RefluxAPIManager仕様.md)。
 
 ## ビルド
 
 - .NET SDK（9 で確認）。`dotnet build Reflux.sln`。コアは `netcoreapp3.1`（ランタイムはサポート切れなので配布物はランタイム同梱）、Reflux API Manager は .NET Framework 4.8
-- `build-dist.bat`: `dist\Reflux`（Reflux.exe・RefluxAPIManager.exe・説明書・サービス登録の bat）と zip を作る
+- `build-dist.bat`: `dist\RefluxAPIServer`（Reflux.exe・RefluxAPIManager.exe・説明書・サービス登録の bat）と zip を作る
 
 ## ライセンス
 
