@@ -59,6 +59,8 @@
       <Generator>ResXFileCodeGenerator</Generator>
       <LastGenOutput>Resources.Designer.cs</LastGenOutput>
     </EmbeddedResource>
+    <!-- Titles and artists as the KONAMI site's INFINITAS score CSV writes them (Api/CsvExport.cs; the same file as Beat Ledger's) -->
+    <EmbeddedResource Include="Api\inf-csv-names.tsv" LogicalName="inf-csv-names.tsv" />
   </ItemGroup>
 
 </Project>

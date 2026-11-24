@@ -98,6 +98,9 @@ namespace Reflux.Api
         static List<SongDto> songList = new List<SongDto>();
         static List<ChartDto> chartList = new List<ChartDto>();
         static List<ClearRateDto> clearRateList = new List<ClearRateDto>();
+        static List<ScoreDto> scoreList = new List<ScoreDto>();
+        static List<RivalDto> rivalList = new List<RivalDto>();
+        static List<RivalScoreDto> rivalScoreList = new List<RivalScoreDto>();
         static DateTime songsAt, clearRatesAt, scoresAt, rivalsAt;
         static string songsGameVersion, clearRatesGameVersion, scoresGameVersion, rivalsGameVersion;
         static string clearRatesKey = "";
@@ -228,6 +231,11 @@ namespace Reflux.Api
         {
             lock (sync) { return (songList, chartList, clearRateList, songsAt, clearRatesAt, songsGameVersion); }
         }
+        /// <summary>Everything the CSV export needs, as published (for CsvExport, don't modify)</summary>
+        public static (List<SongDto> songs, List<ScoreDto> scores, List<RivalDto> rivals, List<RivalScoreDto> rivalScores, string infinitasId) ExportSource()
+        {
+            lock (sync) { return (songList, scoreList, rivalList, rivalScoreList, status.InfinitasId); }
+        }
         public static void SetVersions(string gameVersion, string offsetsVersion)
         {
             lock (sync)
@@ -335,6 +343,8 @@ namespace Reflux.Api
                 rivalsKey = key;
                 rivals = new CachedJson(list);
                 rivalScores = new CachedJson(scores);
+                rivalList = list;
+                rivalScoreList = scores;
                 rivalsAt = DateTime.UtcNow;
                 rivalsGameVersion = status.GameVersion;
                 status.RivalsRevision++;
@@ -397,6 +407,7 @@ namespace Reflux.Api
                 lock (sync)
                 {
                     scores = new CachedJson(s);
+                    scoreList = s;
                     scoresAt = DateTime.UtcNow;
                     scoresGameVersion = status.GameVersion;
                     status.ScoresRevision++;

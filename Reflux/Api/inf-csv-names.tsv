@@ -1,0 +1,33 @@
+# Beat Ledger - titles and artists as the INFINITAS score CSV of the KONAMI site writes them, where they differ from the game
+# Columns (tab separated): song_id <TAB> title <TAB> artist <TAB> memo
+#   song_id : INFINITAS internal music ID (5 digits)
+#   title   : the title in the site's CSV, exactly (spaces at the end included)
+#   artist  : the artist in the site's CSV, exactly
+#   memo    : ignored by the program (the game's title / artist)
+# Besides these the site writes "，" for "," in titles and artists (the client does that for every song).
+# Used to write the CSV in the site's format and to match the site's titles when importing one. UTF-8, LF.
+# Made 2026-11-24 from the SP / DP CSV of one player (about 1,500 of the songs): songs not in it may differ too.
+song_id	title	artist	memo
+05027	Time is money	JAZZ	Time is money / good-cool
+09048	e-motion 2003  -romantic extra-	e.o.s. Remixed by dj TAKA	e-motion 2003 -romantic extra-
+11026	ピアノ協奏曲第１番”蠍火”	virkato	ピアノ協奏曲第1番"蠍火"
+15000	Anisakis -somatic mutation typeForza-	朱雀	Anisakis -somatic mutation type"Forza"-
+15034	JOURNEY TO FANTASICA (IIDX LIMITED )	S.S.D.FANTASICA feat. EMI with ARATA	JOURNEY TO "FANTASICA" (IIDX LIMITED )
+15059	satellite020712 from CODED ARMS	猫叉Master	satellite020712 from "CODED ARMS"
+16037	You'll say Now!	BLACK STAR 幸広-YUKIHIRO-	You'll say "Now!"
+17011	フェティッシュペイパー　～　脇の汗回転ガール　～	ガキ大将ティーム	フェティッシュペイパー ～ 脇の汗回転ガール ～
+17055	水上の提督(Short mix from 幻想水滸伝V)	猫叉Master	水上の提督(Short mix from "幻想水滸伝V")
+19064	fffff	Five Hammer	ƒƒƒƒƒ
+20040	Light and Cyber…	Tatsh	Light and Cyber･･･
+21012	Close the World feat. a☆ru	天叢雲剣	Close the World feat.a☆ru
+21080	野球の遊び方　そしてその歴史　～決定版～	あさき大監督	野球の遊び方 そしてその歴史 ～決定版～
+22003	Rave*it!! Rave*it!! 	機龍	Rave*it!! Rave*it!!
+22029	COLOSSEUM 	劇団レコード	COLOSSEUM
+23004	ギョギョっと人魚 爆婚ブライダル	海の底からマーメイド Prim by ARM×狐夢想	ギョギョっと人魚♨爆婚ブライダル / 海の底からマーメイド♨Prim by ARM×狐夢想
+25006	純真可憐デザイア	BEMANI Sound Team HuΣeR feat.Fernweh	純真可憐デザイア / BEMANI Sound Team "HuΣeR" feat.Fernweh
+25033	Amor De Verao	かめりあ feat. ななひら	Amor De Verão
+25047	うさ☆かめ 大戦争！	ARM×狐夢想 feat. I've : 柚子乃 & RIN	うさ☆かめ 大戦争！ / ARM×狐夢想 feat. I've : 柚子乃 & RINA
+26062	The Sealer ～ア・ミリアとミリアの民～	Zektbach	The Sealer 〜ア・ミリアとミリアの民〜
+26101	Geirskogul	Maozon	Geirskögul
+26111	Six String Proof	HARDROCK	Six String Proof / BEMANI Sound Team "Yvya × Mutsuhiko Izumi"
+80003	Clione (Ryu☆Remix)	Remixed by Ryu☆	Clione (Ryu☆ Remix)

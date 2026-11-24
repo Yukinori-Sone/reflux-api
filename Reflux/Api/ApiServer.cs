@@ -98,7 +98,7 @@ namespace Reflux.Api
                 {
                     case "":
                     case "/api":
-                        Write(ctx, 200, EndpointList("\"GET /api/status\",\"GET /api/songs\",\"GET /api/charts\",\"GET /api/scores\",\"GET /api/latest\",\"GET /api/session\",\"GET /api/clearrates\",\"GET /api/rivals\",\"GET /api/rivals/scores\",\"GET /api/plays?since=&limit=&infinitasId=\",\"GET /api/masters?tables=\",\"GET /api/screenshots\",\"GET /api/screenshot?key=\",\"DELETE /api/screenshot?key=\",\"POST /api/attach/retry\"," +
+                        Write(ctx, 200, EndpointList("\"GET /api/status\",\"GET /api/songs\",\"GET /api/charts\",\"GET /api/scores\",\"GET /api/latest\",\"GET /api/session\",\"GET /api/clearrates\",\"GET /api/rivals\",\"GET /api/rivals/scores\",\"GET /api/plays?since=&limit=&infinitasId=\",\"GET /api/masters?tables=\",\"GET /api/export/csv/{self|sp-self|dp-self|sp-rival-N|dp-rival-N}?style=sp|dp\",\"GET /api/screenshots\",\"GET /api/screenshot?key=\",\"DELETE /api/screenshot?key=\",\"POST /api/attach/retry\"," +
                             "\"GET /api/offsets\",\"PUT /api/offsets\",\"GET /api/memory/info\",\"GET /api/memory?address=&length=&format=hex|bin&encoding=sjis\"," +
                             "\"GET /api/memory/search?start=&length=&hex=|text=&encoding=|int32=|int64=&max=\"," +
                             "\"GET /api/settings\",\"PUT /api/settings\",\"GET /api/outputs\",\"PUT /api/outputs\",\"GET /api/layout\",\"PUT /api/layout\",\"GET|POST /api/layout/preview?start=&count=\"]"));
@@ -135,6 +135,7 @@ namespace Reflux.Api
                     case "/api/memory": DebugApi.Dump(ctx); return;
                     case "/api/memory/search": DebugApi.Search(ctx); return;
                 }
+                if (path.StartsWith("/api/export/csv/")) { CsvExport.Handle(ctx, path.Substring("/api/export/csv/".Length)); return; }
                 if (Plugins.PluginHost.TryHandleGet(path, ctx)) { return; }
             }
             else if ((method == "PUT" || method == "POST") && path == "/api/offsets")

@@ -45,6 +45,7 @@
 | `GET /api/clearrates` | 全国のクリアレート（譜面ごと）。下記 |
 | `GET /api/rivals` | ゲームに登録したライバル（SP・DP 別に最大5人）。下記 |
 | `GET /api/rivals/scores` | ライバル全員の譜面ごとの EX スコア・ランプ。下記 |
+| `GET /api/export/csv/{who}` | 自分・ライバルのスコアを、KONAMI の公式サイトの INFINITAS のスコア CSV と同じ形式で返す。下記 |
 | `GET /api/settings` | コアの動作設定（下記）の今の値・初期値・選択肢 |
 | `GET /api/masters?tables=...` | マスター・定数の表（曲・譜面・シリーズ・楽曲パックも選べる）。下記 |
 | `PUT /api/settings` | 動作設定を変える。本文に書いた項目だけ変わり、その場で反映して `coresettings.json` に保存する |
@@ -121,6 +122,19 @@
 - rivals: `[{side, index, infinitasId, djName, prefId, gradeSp, gradeDp, charts}]`。`side` は `SP` / `DP`（ゲームでは SP と DP のライバルを別々に5人ずつ登録する。同じ人のこともある）、`index` は登録順（0〜）。`prefId`（都道府県、[INFINITAS動作.md](INFINITAS動作.md) の表）と `gradeSp` / `gradeDp`（段位、-1 = なし）は推定。`charts` はスコアのある譜面数
 - scores: `[{side, index, songId, difficulty, exScore, lamp}]`。プレーしていない譜面は含まない。`lamp` は `NP` 〜 `FC`（ゲームは PERFECT を保存しないので `PFC` は無い）。ミスカウントや判定の内訳は無い
 - ゲームは起動時にだけライバルを取得するので、コアは ready になったときに読む（両方読めるまで、選曲画面に戻るたびに読み直す）。ライバルを変えたら INFINITAS の再起動が必要
+
+### `GET /api/export/csv/{who}`（2026-11-24 から）
+
+`/api/scores` と `/api/rivals/scores` と同じデータを、KONAMI の公式サイトからダウンロードできる INFINITAS のスコア CSV（`C-xxxx-xxxx-xxxx_sp_score.csv` / `_dp_score.csv`）と同じ形式で返す（`Api/CsvExport.cs`）。公式サイトの CSV を読むツールに、そのまま渡せる。
+
+- `who`: `self`（プレー側は `?style=sp|dp`、省略時は `sp`）、`sp-self`、`dp-self`、`sp-rival-1`〜`sp-rival-5`、`dp-rival-1`〜`dp-rival-5`（ゲームのライバルの登録順。`/api/rivals` の `index` + 1）
+- 応答: `200`、`Content-Type: text/csv; charset=utf-8`、`Content-Disposition: attachment; filename="C-xxxx-xxxx-xxxx_sp_score.csv"`（公式サイトと同じ名前。自分の INFINITAS ID が分からなければ `unknown_sp_score.csv`）、`X-Infinitas-Id`、`X-Read-At` / `X-Game-Version`（`scores` か `rivals` のもの）。`who` が違えば `404`、`style` が違えば `400`、その番号のライバルがいなければ `404`、ゲームの曲データをまだ読んでいなければ `503`（いずれも JSON の `{error, message}`）
+- 形式は公式サイトのファイルと同じ: UTF-8（BOM 付き）、改行は LF、見出しの行の最後にカンマ、値は引用符で囲まない（タイトル・アーティストの `,` は全角の `，`）。列は「バージョン, タイトル, アーティスト」と、BEGINNER〜LEGGENDARIA ごとに「スコア, 最終スコア更新時刻, ミスカウント, クリアタイプ, プレー回数, 最終プレー日時」。1譜面でもプレーした曲だけを、バージョン順（1st style と substream はまとめて `1st&substream`、INFINITAS が最後）、その中はタイトルを小文字にした文字コード順に並べる
+- バージョン名は公式サイトの書き方（`2nd style`、`IIDX RED`、`Sparkle Shower`、`INFINITAS` など）。タイトル・アーティストは、公式サイトがゲームと違う書き方をしている曲（空白・引用符・文字の違い、アーティストがジャンル名になっている曲など）だけ、組み込みの一覧（`Api/inf-csv-names.tsv`、Beat Ledger の同じ名前のファイルと同じ内容）で公式サイトの書き方にする
+- ゲームは日付を持っていないので、「最終スコア更新時刻」「最終プレー日時」はいつも `---`。プレーしていない譜面は公式サイトと同じく `0,---,---,NO PLAY,0,---`
+- 自分: スコア・ミスカウント（無ければ `---`）・クリアタイプ・プレー回数は `/api/scores` と同じ値。PERFECT は `FULLCOMBO CLEAR`（公式サイトにも PERFECT は無い）
+- ライバル: ゲームはミスカウントとプレー回数を受け取らないので、ミスカウントは `---`、プレー回数は `0`
+- ある1人の公式サイトの DP の CSV（1,513 曲）と比べて、ミスカウント・プレー回数・日付以外のすべて（行の順・バージョン・タイトル・アーティスト・スコア・クリアタイプ）が一致することを確かめた
 
 ### コアの動作設定（`/api/settings`、`coresettings.json`）
 
