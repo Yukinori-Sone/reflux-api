@@ -59,7 +59,8 @@
 |---|---|
 | `apiVersion` | API の版（今は 1） |
 | `instanceId` | Reflux を起動するたびに変わる ID。下の revision はこの ID が同じ間だけ比べられる |
-| `refluxVersion` | Reflux のバージョン。本家の版＋独自版の印（`1.16.6+custom.20261107`。日付はビルドした日） |
+| `refluxVersion` | Reflux のバージョン。本家の版＋この独自版の番号＋ビルドした日（`1.16.6-custom.2+20261124`。custom.1 までは `1.16.6+custom.20261107` の形） |
+| `customRevision` | この独自版の番号（`-custom.N` の N。リリースのたびに増やし、Releases のタグ `v1.16.6-custom.N` と同じ）。クライアントは自分が必要とする番号と比べる。custom.1 までのコアは返さない（無ければ custom.1 とみなせる） |
 | `attachState` | `waitingForProcess`（INFINITAS 待ち）、`checkingVersion`、`offsetMismatch`（オフセット不一致で待機中）、`offsetSearch`（コンソールで対話式探索中）、`loading`（曲データ読み込み中）、`layoutMismatch`（読み込みを始めて 30 秒たっても曲リストが `Layout.CheckSongs` に通らない。INFINITAS の更新で構造体の配置が変わった可能性。`PUT /api/layout` で直すと再アタッチする）、`ready`（監視中） |
 | `attachStateSince` | その状態になった時刻（UTC） |
 | `message` | 状態の補足（不一致のときの案内、曲リストのチェック結果など）。無ければ `null` |

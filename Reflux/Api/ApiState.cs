@@ -39,6 +39,8 @@ namespace Reflux.Api
         /// <summary>Changes every time Reflux starts, revisions are only comparable within one instance</summary>
         public string InstanceId { get; set; } = Guid.NewGuid().ToString("N");
         public string RefluxVersion { get; set; }
+        /// <summary>This custom version's own number (the N of 1.16.6-custom.N): what a client checks the core has</summary>
+        public int CustomRevision { get; set; } = BuildInfo.CustomRevision;
         public AttachState AttachState { get; set; }
         public DateTime AttachStateSince { get; set; }
         public string Message { get; set; }

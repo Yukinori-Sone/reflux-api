@@ -4,8 +4,10 @@
     <OutputType>Exe</OutputType>
     <TargetFramework>netcoreapp3.1</TargetFramework>
     <Version>1.16.6</Version>
-    <!-- Custom build mark shown in the console and the API (the update check uses Version only). The date is the build date -->
-    <InformationalVersion>$(Version)+custom.$([System.DateTime]::Now.ToString('yyyyMMdd'))</InformationalVersion>
+    <!-- This custom version's own number: raise it for every release (tag v$(Version)-custom.N). Clients name the one they need (status.customRevision) -->
+    <CustomRevision>2</CustomRevision>
+    <!-- Shown in the console and the API (the update check uses Version only): 1.16.6-custom.2+20261124, the date is the build date -->
+    <InformationalVersion>$(Version)-custom.$(CustomRevision)+$([System.DateTime]::Now.ToString('yyyyMMdd'))</InformationalVersion>
     <IncludeSourceRevisionInInformationalVersion>false</IncludeSourceRevisionInInformationalVersion>
 	<ApplicationIcon>resources/icon.ico</ApplicationIcon>
     <OutputPath>reflux build</OutputPath>

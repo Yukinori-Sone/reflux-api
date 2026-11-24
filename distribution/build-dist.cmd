@@ -11,8 +11,9 @@ rem The folder users get from the zip: the same name as the service and the usua
 set PKG=RefluxAPIServer
 
 for /f "usebackq delims=" %%v in (`powershell -NoProfile -Command "([xml](Get-Content 'Reflux\Reflux.csproj')).Project.PropertyGroup.Version | Where-Object { $_ } | Select-Object -First 1"`) do set CORE_VER=%%v
+for /f "usebackq delims=" %%v in (`powershell -NoProfile -Command "([xml](Get-Content 'Reflux\Reflux.csproj')).Project.PropertyGroup.CustomRevision | Where-Object { $_ } | Select-Object -First 1"`) do set CORE_REV=%%v
 for /f "usebackq delims=" %%d in (`powershell -NoProfile -Command "Get-Date -Format yyyyMMdd"`) do set BUILD_DATE=%%d
-set CORE_NAME=%PKG%-%CORE_VER%+custom.%BUILD_DATE%
+set CORE_NAME=%PKG%-%CORE_VER%-custom.%CORE_REV%+%BUILD_DATE%
 echo Core   %CORE_NAME%
 
 if exist "%DIST%\Reflux" rmdir /s /q "%DIST%\Reflux"
