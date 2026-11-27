@@ -8,7 +8,9 @@ namespace Reflux.Api
     /// <summary>
     /// The player's favorite songs (MY FAVORITE folder, registered with the 6 key on song select), found 2026-11-27 on 2026111100 in the
     /// bm2dx image near the profile (Player.Profile): SP and DP each { int32 header; int32 song IDs[100] }, the DP block right after the SP
-    /// one. Unused slots are -1, the game keeps the IDs sorted as decimal strings. Per song, for every chart type of the play side
+    /// one. Unused slots are -1, the game keeps the IDs sorted as decimal strings. Per song, for every chart type of the play side.
+    /// This is the copy written when the game saves the play data (pdata /favorite, sent with SavePlayData when a mode ends): favorites
+    /// registered on song select show here only after that. The live state is a std::list on the heap (not read)
     /// </summary>
     public class FavoriteLayout
     {

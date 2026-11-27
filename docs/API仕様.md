@@ -129,7 +129,7 @@
 ### `GET /api/favorites`
 
 - `{"sp": ["02016", "03005", ...], "dp": [...]}`。選曲画面で 6 キーを押して登録した曲（MY FAVORITE フォルダ）の曲ID。譜面の種類には関係なく曲ごとで、SP と DP は別々（ゲームではそれぞれ最大 100 曲）。並びは曲ID の文字列順
-- コアは選曲画面にいる間、監視のたびに読む（登録・解除しても画面は変わらないため）。変わったときだけ `favoritesRevision` が増える。位置は `layout.json` の `favorite`
+- コアが読むのは、ゲームがプレーデータを保存するときに書く写し。**登録・解除してもすぐには変わらず、モードを終えたとき（モード選択画面に戻ったとき）に変わる**。コアはメニュー画面（`songSelect`）にいる間、監視のたびに読み、変わったときだけ `favoritesRevision` が増える。位置は `layout.json` の `favorite`
 
 ### `GET /api/export/csv/{who}`（2026-11-24 から）
 
@@ -354,7 +354,7 @@ curl -X PUT "$A/outputs" -d '{"marquee":true,"playState":true}'
 | `clearRate` | 全国クリアレート。`spMap` / `dpMap` は **bm2dx のベースアドレスからの位置**で、そこにオブジェクト（仮想関数表 `0x1404E5D70`, head ノード, 件数）へのポインタがある。中身は MSVC の `std::map`（赤黒木）で、head の parent が根。ノードは left / parent / right、`isNil`（head なら 0 以外）、曲ID、譜面 0〜4（B〜L）、クリアレート × 100（無ければ -1） |
 | `rival` | ライバル。`spData` / `dpData` は **bm2dx のベースアドレスからの位置**で、そこに `GetRivalInfo` の応答（展開した KBin）を入れたバッファ `{begin, end}` へのポインタがある。バッファの中から `[長さ][人数]` に続く ID（`C` + 12桁）を探し、そこからビッグエンディアンで読む（`Api/Rivals.cs` の説明を参照）。1人分は ID・DJ NAME・店舗名（長さ付き文字列）、県・SP段位・DP段位、曲ごとに 52 バイト（曲ID、`00000014`、EX ×5、`00000014`、ランプ ×5） |
 | `player` | ログイン中のプレイヤー。`infinitasId` は **bm2dx のベースアドレスからの位置**で、`C` + 12桁の INFINITAS ID がある。直後はログイントークンなので、13文字より先は読まない。`profile` は bm2dx 内のプロフィール（INFINITAS ID の写し 13 文字 + NUL、`profileDjName` の位置に DJ NAME（ASCII、0 埋め））。2026111100 で見つけた（ゲームのバージョン文字列の後ろ） |
-| `favorite` | お気に入り。`sp` / `dp` は **bm2dx のベースアドレスからの位置**で、曲ID（int32）が `slots` 個並ぶ（空きは -1）。それぞれ直前に int32 が1つあり（SP は 1、DP は 0 だった。意味は不明）、DP の欄は SP の欄のすぐ後ろ。2026111100 で見つけた（`player.profile` の少し後ろ）。ゲームは曲ID を文字列として並べ替えて持つ |
+| `favorite` | お気に入り。`sp` / `dp` は **bm2dx のベースアドレスからの位置**で、曲ID（int32）が `slots` 個並ぶ（空きは -1）。それぞれ直前に int32 が1つあり（曲があると 1、無いと 0 だった）、DP の欄は SP の欄のすぐ後ろ。2026111100 で見つけた（`player.profile` の少し後ろ）。ゲームは曲ID を文字列として並べ替えて持つ |
 | `masters` | `/api/masters` の exe の表。位置は **bm2dx のベースアドレスからの位置**。`difficulty` など画像名の表は8バイトのポインタが件数分並ぶ。`pref` / `folder` は1件 `*EntrySize` バイトで、各項目の位置を指定する。探し方は `docs/INFINITAS動作.md` の「定数」。`GET /api/layout/preview?struct=masters` で試せる |
 | `gameState` | `judgeData + markerSearchStart` から `markerSearchLength` バイトの中で、10000 を超える値が8バイト間隔で3つ並ぶ所を探し、2つ目から `markerFromMagic` 先をプレー中マーカー（0 以外でプレー中）にする。選曲画面マーカーは `playSettings + songSelectMarker`（1 で選曲画面。プレー後にだけ見る） |
 
