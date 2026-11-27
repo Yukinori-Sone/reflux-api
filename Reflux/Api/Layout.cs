@@ -242,6 +242,7 @@ namespace Reflux.Api
         public RivalLayout Rival = new RivalLayout();
         public ReadingLayout Reading = new ReadingLayout();
         public PlayerLayout Player = new PlayerLayout();
+        public FavoriteLayout Favorite = new FavoriteLayout();
         public MastersLayout Masters = new MastersLayout();
         /// <summary>
         /// Sections registered by plugins (IPluginHost.RegisterLayout), and sections of layout.json no plugin claims (kept as they are,
@@ -555,6 +556,11 @@ namespace Reflux.Api
                 return CheckInside("reading", rd.EntrySize, ("id", rd.Id, 4), ("artistReading", rd.ArtistReading, 0x20), ("titleReading", rd.TitleReading, 0x20),
                     ("searchKey", rd.SearchKey, 0x20), ("artistKey", rd.ArtistKey, 0x20));
             }
+            if (target is FavoriteLayout fv)
+            {
+                if (fv.Slots < 1 || fv.Slots > 1000) { return "favorite.slots must be 1..1000"; }
+                return null;
+            }
             if (target is ScoreMapLayout m)
             {
                 if (m.NodeSize < 0x10 || m.NodeSize > 0x1000) { return "scoreMap.nodeSize must be 0x10..0x1000"; }
@@ -682,6 +688,7 @@ namespace Reflux.Api
                         "gamestate" => PreviewGameState(reader, layout.GameState),
                         "clearrate" => PreviewClearRate(reader, layout.ClearRate, q["songs"], count),
                         "reading" => PreviewReading(reader, layout.Reading, q["songs"], count),
+                        "favorite" => PreviewFavorite(reader, layout.Favorite),
                         "rival" => PreviewRival(reader, layout.Rival, q["songs"]),
                         "masters" => new { layout = ToJson(layout.Masters), masters = Masters.ReadExe(reader, layout.Masters, null) },
                         _ => null,
@@ -693,7 +700,7 @@ namespace Reflux.Api
                 }
                 if (result == null)
                 {
-                    ApiServer.Write(ctx, 400, Error("unknown_struct", "struct must be song, unlock, scoreMap, playData, judge, settings, currentSong, gameState, clearRate, rival, reading or masters")); return;
+                    ApiServer.Write(ctx, 400, Error("unknown_struct", "struct must be song, unlock, scoreMap, playData, judge, settings, currentSong, gameState, clearRate, rival, reading, favorite or masters")); return;
                 }
                 ApiServer.Write(ctx, 200, JsonConvert.SerializeObject(result, ApiState.JsonSettings));
                 return;
@@ -942,6 +949,30 @@ namespace Reflux.Api
                 },
                 songs = readings.Where(kv => watch.Count == 0 || watch.Contains(kv.Key)).Take(watch.Count > 0 ? 500 : count)
                     .Select(kv => new { id = kv.Key, titleReading = kv.Value.Title, artistReading = kv.Value.Artist }),
+            };
+        }
+
+        /// <summary>Favorite songs of both play sides, with titles</summary>
+        static object PreviewFavorite(DebugApi.MemoryReader r, FavoriteLayout l)
+        {
+            var moduleBase = Resolve(r, "base");
+            var dto = Favorites.Read(r.Read, moduleBase, l, out var error);
+            var db = Utils.songDb;
+            object Side(List<string> ids) => ids.Select(id => new { id, title = db.TryGetValue(id, out var s) ? s.title : null });
+            return new
+            {
+                layout = ToJson(l),
+                sp = $"0x{moduleBase + l.Sp:X}",
+                dp = $"0x{moduleBase + l.Dp:X}",
+                summary = new
+                {
+                    looksValid = dto != null && (db.Count == 0 || dto.Sp.Concat(dto.Dp).All(db.ContainsKey)),
+                    error,
+                    sp = dto?.Sp.Count,
+                    dp = dto?.Dp.Count,
+                    notInSongList = dto == null || db.Count == 0 ? (int?)null : dto.Sp.Concat(dto.Dp).Count(id => !db.ContainsKey(id)),
+                },
+                favorites = dto == null ? null : new { sp = Side(dto.Sp), dp = Side(dto.Dp) },
             };
         }
 

@@ -45,6 +45,7 @@
 | `GET /api/clearrates` | 全国のクリアレート（譜面ごと）。下記 |
 | `GET /api/rivals` | ゲームに登録したライバル（SP・DP 別に最大5人）。下記 |
 | `GET /api/rivals/scores` | ライバル全員の譜面ごとの EX スコア・ランプ。下記 |
+| `GET /api/favorites` | お気に入り（選曲画面の MY FAVORITE）の曲。SP・DP 別。下記 |
 | `GET /api/export/csv/{who}` | 自分・ライバルのスコアを、KONAMI の公式サイトの INFINITAS のスコア CSV に似せた形式（公式風CSV）で返す。下記 |
 | `GET /api/settings` | コアの動作設定（下記）の今の値・初期値・選択肢 |
 | `GET /api/masters?tables=...` | マスター・定数の表（曲・譜面・シリーズ・楽曲パックも選べる）。下記 |
@@ -74,10 +75,11 @@
 | `songsRevision` / `scoresRevision` | 曲データ / 自己ベストを読み直すたびに増える。クライアントはこれが変わったときだけ取り直す |
 | `clearRatesRevision` | クリアレートの値が変わったときだけ増える（0 のうちは未取得） |
 | `rivalsRevision` | ライバルの一覧・スコアが変わったときだけ増える（0 のうちは未取得） |
+| `favoritesRevision` | お気に入りが変わったときだけ増える（0 のうちは未取得） |
 | `plugins` | 読み込んだプラグインの名前とバージョンの配列（下の「プラグイン」） |
 | `pluginRevisions` | プラグインが自分のデータに付ける更新番号（名前 → 回数）。そのデータが変わったときだけ増える。まだ無い名前は未取得 |
 | `sessionPlays` | 今回の起動以降に記録したプレー数 |
-| `dataWarnings` | アタッチ中に読めないデータの種類の配列（`rivals` / `clearRates` / `playCounts`、プラグインが足す名前もある）。INFINITAS の更新で静的ポインタや構造体が動いた可能性。読めれば消える。ライバルはアタッチから2分たつまで出さない（ゲームが受け取り中のことがある） |
+| `dataWarnings` | アタッチ中に読めないデータの種類の配列（`rivals` / `clearRates` / `playCounts` / `favorites`、プラグインが足す名前もある）。INFINITAS の更新で静的ポインタや構造体が動いた可能性。読めれば消える。ライバルはアタッチから2分たつまで出さない（ゲームが受け取り中のことがある） |
 | `serverTime` | 応答した時刻（UTC） |
 
 ### `GET /api/songs` / `charts` / `scores`
@@ -123,6 +125,11 @@
 - rivals: `[{side, index, infinitasId, djName, prefId, gradeSp, gradeDp, charts}]`。`side` は `SP` / `DP`（ゲームでは SP と DP のライバルを別々に5人ずつ登録する。同じ人のこともある）、`index` は登録順（0〜）。`prefId`（都道府県、[INFINITAS動作.md](INFINITAS動作.md) の表）と `gradeSp` / `gradeDp`（段位、-1 = なし）は推定。`charts` はスコアのある譜面数
 - scores: `[{side, index, songId, difficulty, exScore, lamp}]`。プレーしていない譜面は含まない。`lamp` は `NP` 〜 `FC`（ゲームは PERFECT を保存しないので `PFC` は無い）。ミスカウントや判定の内訳は無い
 - ゲームは起動時にだけライバルを取得するので、コアは ready になったときに読む（両方読めるまで、選曲画面に戻るたびに読み直す）。ライバルを変えたら INFINITAS の再起動が必要
+
+### `GET /api/favorites`
+
+- `{"sp": ["02016", "03005", ...], "dp": [...]}`。選曲画面で 6 キーを押して登録した曲（MY FAVORITE フォルダ）の曲ID。譜面の種類には関係なく曲ごとで、SP と DP は別々（ゲームではそれぞれ最大 100 曲）。並びは曲ID の文字列順
+- コアは選曲画面にいる間、監視のたびに読む（登録・解除しても画面は変わらないため）。変わったときだけ `favoritesRevision` が増える。位置は `layout.json` の `favorite`
 
 ### `GET /api/export/csv/{who}`（2026-11-24 から）
 
@@ -277,7 +284,7 @@ curl -X PUT "$A/outputs" -d '{"marquee":true,"playState":true}'
 | `GET /api/layout/preview?struct=…&start=…&count=…` | 使用中の配置で、その構造体をメモリから読んだ結果 |
 | `POST /api/layout/preview?struct=…` | 本文（`PUT` と同じ形式）の配置で試し読みする。**保存しない** |
 
-- `struct` は `song`（既定）、`unlock`、`scoreMap`、`playData`、`judge`、`settings`、`currentSong`、`gameState`、`clearRate`、`rival`、`reading`（曲の読み。`songs=02000,32044` でその曲だけ）
+- `struct` は `song`（既定）、`unlock`、`scoreMap`、`playData`、`judge`、`settings`、`currentSong`、`gameState`、`clearRate`、`rival`、`reading`（曲の読み。`songs=02000,32044` でその曲だけ）、`favorite`（お気に入り。曲名付き）
 - `start` は読み始めるアドレス式。既定は構造体に対応するオフセット（`song` なら `songList`）
 - `count` は先頭から返す件数（`song` / `unlock` / `scoreMap`。既定 5、最大 500）
 - `song` / `unlock` / `scoreMap` は全件を読んで `summary` にチェック結果を返す（`unlock` は楽曲パックの数 `packItemIds`（2026101400 で 46）と、Sub 以外なのに商品IDがある曲の数 `packSongsNotSub`（0 のはず）も返す）。`summary.looksValid` が `true` なら配置はたぶん正しい。
@@ -326,6 +333,7 @@ curl -X PUT "$A/outputs" -d '{"marquee":true,"playState":true}'
   "player": { "infinitasId": "0x25D1ED4", "profile": "0x699D40", "profileDjName": "0xE" },
   "reading": { "vector": "0x2909728", "entrySize": "0x88", "id": "0x0", "artistReading": "0x8", "titleReading": "0x28", "searchKey": "0x48", "artistKey": "0x68",
     "stringLength": "0x10", "stringCapacity": "0x18" },
+  "favorite": { "sp": "0x69B4B4", "dp": "0x69B648", "slots": "0x64" },
   "masters": { "difficulty": "0x527AB8", "difficultyCount": "0x5", "lamp": "0x5A9FB0", "lampCount": "0x8", "grade": "0x52E7F0", "gradeCount": "0x13",
     "playSide": "0x52E888", "playSideCount": "0x3", "graphTarget": "0x52E8A0", "graphTargetCount": "0x14",
     "pref": "0x6EB968", "prefCount": "0x36", "prefEntrySize": "0x18", "prefName": "0x0", "prefImage": "0x8", "prefId": "0x10",
@@ -346,6 +354,7 @@ curl -X PUT "$A/outputs" -d '{"marquee":true,"playState":true}'
 | `clearRate` | 全国クリアレート。`spMap` / `dpMap` は **bm2dx のベースアドレスからの位置**で、そこにオブジェクト（仮想関数表 `0x1404E5D70`, head ノード, 件数）へのポインタがある。中身は MSVC の `std::map`（赤黒木）で、head の parent が根。ノードは left / parent / right、`isNil`（head なら 0 以外）、曲ID、譜面 0〜4（B〜L）、クリアレート × 100（無ければ -1） |
 | `rival` | ライバル。`spData` / `dpData` は **bm2dx のベースアドレスからの位置**で、そこに `GetRivalInfo` の応答（展開した KBin）を入れたバッファ `{begin, end}` へのポインタがある。バッファの中から `[長さ][人数]` に続く ID（`C` + 12桁）を探し、そこからビッグエンディアンで読む（`Api/Rivals.cs` の説明を参照）。1人分は ID・DJ NAME・店舗名（長さ付き文字列）、県・SP段位・DP段位、曲ごとに 52 バイト（曲ID、`00000014`、EX ×5、`00000014`、ランプ ×5） |
 | `player` | ログイン中のプレイヤー。`infinitasId` は **bm2dx のベースアドレスからの位置**で、`C` + 12桁の INFINITAS ID がある。直後はログイントークンなので、13文字より先は読まない。`profile` は bm2dx 内のプロフィール（INFINITAS ID の写し 13 文字 + NUL、`profileDjName` の位置に DJ NAME（ASCII、0 埋め））。2026111100 で見つけた（ゲームのバージョン文字列の後ろ） |
+| `favorite` | お気に入り。`sp` / `dp` は **bm2dx のベースアドレスからの位置**で、曲ID（int32）が `slots` 個並ぶ（空きは -1）。それぞれ直前に int32 が1つあり（SP は 1、DP は 0 だった。意味は不明）、DP の欄は SP の欄のすぐ後ろ。2026111100 で見つけた（`player.profile` の少し後ろ）。ゲームは曲ID を文字列として並べ替えて持つ |
 | `masters` | `/api/masters` の exe の表。位置は **bm2dx のベースアドレスからの位置**。`difficulty` など画像名の表は8バイトのポインタが件数分並ぶ。`pref` / `folder` は1件 `*EntrySize` バイトで、各項目の位置を指定する。探し方は `docs/INFINITAS動作.md` の「定数」。`GET /api/layout/preview?struct=masters` で試せる |
 | `gameState` | `judgeData + markerSearchStart` から `markerSearchLength` バイトの中で、10000 を超える値が8バイト間隔で3つ並ぶ所を探し、2つ目から `markerFromMagic` 先をプレー中マーカー（0 以外でプレー中）にする。選曲画面マーカーは `playSettings + songSelectMarker`（1 で選曲画面。プレー後にだけ見る） |
 

@@ -64,6 +64,8 @@ namespace Reflux.Api
         public int ClearRatesRevision { get; set; }
         /// <summary>Incremented when /api/rivals and /api/rivals/scores content changes</summary>
         public int RivalsRevision { get; set; }
+        /// <summary>Incremented when /api/favorites content changes (the player registers or removes a favorite on song select)</summary>
+        public int FavoritesRevision { get; set; }
         /// <summary>Plugins loaded (name and version)</summary>
         public List<string> Plugins { get; set; } = new List<string>();
         /// <summary>Revisions the plugins keep for their own data (name → count, see IPluginHost.BumpRevision); replaced, never changed in place</summary>
@@ -109,6 +111,8 @@ namespace Reflux.Api
         static CachedJson rivals = new CachedJson(new RivalDto[0]);
         static CachedJson rivalScores = new CachedJson(new RivalScoreDto[0]);
         static string rivalsKey = "";
+        static CachedJson favorites = new CachedJson(new FavoritesDto());
+        static string favoritesKey = "";
         static bool rivalsLoaded;
         static DateTime readyAt, lastRivalTry;
         static GameState gameState;
@@ -306,6 +310,7 @@ namespace Reflux.Api
                 CoreSettings.OnSongSelect();
                 if (PlayCounts.Refresh()) { PublishScores(); } /* The game updates clear / play counts after every play */
                 ClearRates.Refresh(); /* Server statistics may have been updated while playing */
+                Favorites.Refresh();
                 Plugins.PluginHost.RaiseSongSelect();
                 RetryDjName();
                 if (SongReadings.ShouldRetry()) { PublishSongs(); } /* The reading table wasn't there yet when the songs were published */
@@ -314,11 +319,17 @@ namespace Reflux.Api
                 if (!loaded) { Rivals.Refresh(); } /* The game fetches rivals only at startup, retry until both sides were read */
             }
         }
+        /// <summary>Main loop, every song select poll: favorites (registered on song select, without a state change), rivals until read</summary>
+        public static void OnSongSelectPoll()
+        {
+            Favorites.Refresh();
+            RetryRivals();
+        }
         /// <summary>
         /// Main loop, every song select poll: retry the rivals every 5 s until both sides were read. Reflux can become ready while
         /// the game is still receiving them (seen on 2026101400: ready 2 s before the rivals arrived, during NOW LOADING)
         /// </summary>
-        public static void RetryRivals()
+        static void RetryRivals()
         {
             lock (sync)
             {
@@ -365,6 +376,18 @@ namespace Reflux.Api
                 clearRatesAt = DateTime.UtcNow;
                 clearRatesGameVersion = status.GameVersion;
                 status.ClearRatesRevision++;
+            }
+        }
+        /// <summary>Publish the favorites, the revision only changes when they changed</summary>
+        public static void PublishFavorites(FavoritesDto dto)
+        {
+            var key = string.Join(",", dto.Sp) + "|" + string.Join(",", dto.Dp);
+            lock (sync)
+            {
+                if (key == favoritesKey) { return; }
+                favoritesKey = key;
+                favorites = new CachedJson(dto);
+                status.FavoritesRevision++;
             }
         }
         /// <summary>IPluginHost.BumpRevision</summary>
@@ -532,6 +555,7 @@ namespace Reflux.Api
         public static string ClearRatesJson() { lock (sync) { return clearRates.Json; } }
         public static string RivalsJson() { lock (sync) { return rivals.Json; } }
         public static string RivalScoresJson() { lock (sync) { return rivalScores.Json; } }
+        public static string FavoritesJson() { lock (sync) { return favorites.Json; } }
         #endregion
 
         /// <summary>
