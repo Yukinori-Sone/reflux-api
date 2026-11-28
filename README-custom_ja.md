@@ -13,7 +13,7 @@ beatmania IIDX は株式会社コナミデジタルエンタテインメント�
 |---|---|
 | `Reflux.exe`（Reflux API Server） | ゲーム PC で動くコア。Reflux本家の記録機能に加えて、曲・譜面・自己ベスト（クリア回数・プレー回数付き）・全国クリアレート・ライバル（SP/DP 各5人）・プレー履歴（プレー直前の自己ベスト付き）・マスターを HTTP API で返す。LAN 公開・APIキー対応。Windows サービスとしても動く |
 | `RefluxAPIManager.exe`（Reflux API Manager） | Reflux.exe と同じフォルダに置くタスクトレイの管理ツール。状態の表示、設定の変更、サービスの開始・停止、リザルト画面のスクリーンショット（フルスクリーン対応。プレー記録と同じ名前で保存） |
-| クライアント | 記録は API を使うクライアントで見る。クライアントの例: 同じ作者の [Beat Ledger](https://github.com/Yukinori-Sone/beat-ledger) |
+| クライアント | 記録は API を使うクライアントで見る。クライアントの例: 同じ作者の [Beat Ledger](https://github.com/kun-9821/beat-ledger) |
 
 ## Reflux本家からの主な拡張
 
