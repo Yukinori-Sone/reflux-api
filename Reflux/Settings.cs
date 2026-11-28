@@ -11,6 +11,8 @@
         public bool flip;
         public bool battle;
         public bool Hran;
+        public bool allScratch; /* Api/SpecialOptions.cs */
+        public bool regulSpeed;
 
         /// <summary>
         /// Fetch settings
@@ -109,6 +111,7 @@
                 if (style == "S-RANDOM") { style = "H-RANDOM"; }
                 if (style2 == "S-RANDOM") { style2 = "H-RANDOM"; }
             }
+            Api.SpecialOptions.Apply(this, playstyle);
         }
     }
 }

@@ -305,6 +305,7 @@ namespace Reflux.Api
                     status.CurrentChart = current;
                 }
             }
+            if (state == GameState.playing) { SpecialOptions.OnPlayStart(); }
             if (state == GameState.songSelect)
             {
                 CoreSettings.OnSongSelect();
@@ -461,6 +462,9 @@ namespace Reflux.Api
                     form["battle"] = play.Battle.ToString().ToLower();
                     form["hran"] = play.Hran.ToString().ToLower();
                 }
+                if (play.AllScratch) { form["allscratch"] = "true"; }
+                if (play.RegulSpeed) { form["regulspeed"] = "true"; }
+                if (SpecialOptions.StartGauge is int start) { form["gaugestart"] = start.ToString(); }
 
                 if (play.DataAvailable && !play.Unsaved)
                 {

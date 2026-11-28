@@ -1,14 +1,14 @@
 namespace Reflux.Api
 {
     /// <summary>
-    /// Plays the game doesn't keep: DOUBLE BATTLE and H-RANDOM. For them the game writes no play data (song, difficulty, lamp and
+    /// Plays the game doesn't keep: DOUBLE BATTLE, H-RANDOM, ALL SCRATCH and REGUL-SPEED (SpecialOptions). For them the game writes no play data (song, difficulty, lamp and
     /// EX score stay 0) and the result screen shows no best score, so Reflux builds the play from the chart being played, the
     /// judges, the gauge and the options instead (checked on 2026-11-04 with INFINITAS 2026101400). Such plays are recorded in
     /// the play history only: not in tracker.db, the game's bests (PlayCounts) or bestdetail.json.
     /// </summary>
     static class UnsavedPlay
     {
-        public static bool Applies(Settings settings) => settings.battle || settings.Hran;
+        public static bool Applies(Settings settings) => settings.battle || settings.Hran || settings.allScratch || settings.regulSpeed;
 
         /// <summary>
         /// The chart played. currentSong holds the difficulty within the play style (0..4, ANOTHER is 3 in SP and DP alike):

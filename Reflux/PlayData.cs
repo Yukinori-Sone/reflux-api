@@ -37,6 +37,8 @@ namespace Reflux
         public bool Unsaved { get; private set; }
         public bool Battle { get { return settings.battle; } }
         public bool Hran { get { return settings.Hran; } }
+        public bool AllScratch { get { return settings.allScratch; } }
+        public bool RegulSpeed { get { return settings.regulSpeed; } }
         public ChartInfo Chart { get { return chart; } }
         public Grade Grade { get { return grade; } }
         public Lamp Lamp { get { return clearLamp; } }

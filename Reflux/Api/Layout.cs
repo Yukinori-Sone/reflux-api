@@ -150,6 +150,9 @@ namespace Reflux.Api
         public int Style2 = 0x14;
         public int Battle = 0x28; /* 0x20 before 2026101400 (BATTLE and H-RAN moved 8 bytes; checked with DOUBLE BATTLE on 2026-11-04) */
         public int HRan = 0x2C;
+        /// <summary>REGUL-SPEED and ALL SCRATCH (premium options, 2026111100; Api/SpecialOptions.cs)</summary>
+        public int RegulSpeed = 0x20;
+        public int AllScratch = 0x24;
         public int P2Offset = 0x48;
     }
 
