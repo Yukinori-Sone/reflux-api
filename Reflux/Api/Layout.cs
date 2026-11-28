@@ -956,14 +956,10 @@ namespace Reflux.Api
         static object PreviewFavorite(DebugApi.MemoryReader r, FavoriteLayout l)
         {
             var moduleBase = Resolve(r, "base");
-            var dto = Favorites.Read(r.Read, moduleBase, l, out var error);
             var db = Utils.songDb;
             object Side(List<string> ids) => ids.Select(id => new { id, title = db.TryGetValue(id, out var s) ? s.title : null });
-            return new
+            object Result(FavoritesDto dto, string error) => new
             {
-                layout = ToJson(l),
-                sp = $"0x{moduleBase + l.Sp:X}",
-                dp = $"0x{moduleBase + l.Dp:X}",
                 summary = new
                 {
                     looksValid = dto != null && (db.Count == 0 || dto.Sp.Concat(dto.Dp).All(db.ContainsKey)),
@@ -973,6 +969,18 @@ namespace Reflux.Api
                     notInSongList = dto == null || db.Count == 0 ? (int?)null : dto.Sp.Concat(dto.Dp).Count(id => !db.ContainsKey(id)),
                 },
                 favorites = dto == null ? null : new { sp = Side(dto.Sp), dp = Side(dto.Dp) },
+            };
+            var live = Favorites.ReadLive(r.Read, moduleBase, l, out var liveError);
+            var saved = Favorites.ReadSaved(r.Read, moduleBase, l, out var savedError);
+            return new
+            {
+                layout = ToJson(l),
+                objectPointer = $"0x{moduleBase + l.Object:X}",
+                savedSp = $"0x{moduleBase + l.Sp:X}",
+                savedDp = $"0x{moduleBase + l.Dp:X}",
+                /* What song select shows (the core uses this), and the copy saved when a mode ends (used when the live one can't be read) */
+                live = Result(live, liveError),
+                saved = Result(saved, savedError),
             };
         }
 
